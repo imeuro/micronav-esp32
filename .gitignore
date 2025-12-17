@@ -1,0 +1,138 @@
+# ============================================
+# MicroNav ESP32-C3 - .gitignore
+# ============================================
+
+# ============================================
+# Build e Compilazione
+# ============================================
+
+# Arduino CLI build output
+build/
+*.elf
+*.bin
+*.hex
+*.map
+*.lst
+
+# LittleFS image generata
+littlefs.bin
+*.littlefs.bin
+
+# Directory temporanee per upload
+data_temp_littlefs/
+
+# ============================================
+# Python / Virtual Environment
+# ============================================
+
+# Virtual environment
+venv/
+env/
+ENV/
+.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Python distribuzione
+*.egg
+*.egg-info/
+dist/
+build/
+*.whl
+
+# ============================================
+# File di Sistema
+# ============================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# ============================================
+# IDE e Editor
+# ============================================
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Arduino IDE
+*.prefs
+*.bak
+
+# PlatformIO (se presente)
+.pio/
+.vscode/.browse.c_cpp.db*
+.vscode/c_cpp_properties.json
+.vscode/launch.json
+.vscode/ipch
+
+# JetBrains IDEs
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# ============================================
+# File Temporanei e Log
+# ============================================
+
+# Log files
+*.log
+*.out
+
+# File temporanei
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# ============================================
+# File di Configurazione Locale
+# ============================================
+
+# Configurazioni locali (se presenti)
+config_local.h
+config_display_pins.h
+*.local
+
+# ============================================
+# Database e File Dati Grandi (opzionale)
+# ============================================
+
+# Se i file JSON sono molto grandi, considera di ignorarli
+# e fornire istruzioni per scaricarli separatamente
+data/speedcams.json
+# data/fake_gps.json
+
+# Mantieni invece i file di esempio se presenti
+# !data/*.example.json
+
