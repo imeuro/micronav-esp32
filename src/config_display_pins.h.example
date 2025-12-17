@@ -1,0 +1,75 @@
+// Esempio configurazioni pin display per ESP32-C3
+// Copia questo file e modifica config.h con i pin corretti
+
+// ============================================
+// CONFIGURAZIONE 1: Pin SPI Hardware Default
+// ============================================
+// Usa i pin SPI hardware di default di ESP32-C3
+// MOSI=7, SCK=6 sono i pin SPI hardware standard
+/*
+#define DISPLAY_CS_PIN 10
+#define DISPLAY_DC_PIN 9
+#define DISPLAY_RST_PIN 8
+#define DISPLAY_BL_PIN 7
+// Non definire MOSI e SCK - userà SPI hardware default
+// #define DISPLAY_MOSI_PIN 7   // Non necessario, è il default
+// #define DISPLAY_SCK_PIN 6    // Non necessario, è il default
+*/
+
+// ============================================
+// CONFIGURAZIONE 2: Pin SPI Espliciti (attuale)
+// ============================================
+// Pin attualmente configurati - CAUSA RESET LOOP
+/*
+#define DISPLAY_CS_PIN 10
+#define DISPLAY_DC_PIN 9
+#define DISPLAY_RST_PIN 8
+#define DISPLAY_BL_PIN 7
+#define DISPLAY_MOSI_PIN 11  // ⚠️ Potrebbe causare conflitti
+#define DISPLAY_SCK_PIN 12   // ⚠️ Potrebbe causare conflitti
+*/
+
+// ============================================
+// CONFIGURAZIONE 3: Pin Alternativi da Provare
+// ============================================
+// Se la board ha pin specifici, prova queste combinazioni:
+/*
+// Opzione A: Pin SPI alternativi
+#define DISPLAY_CS_PIN 5
+#define DISPLAY_DC_PIN 4
+#define DISPLAY_RST_PIN 3
+#define DISPLAY_BL_PIN 2
+#define DISPLAY_MOSI_PIN 7   // SPI hardware default
+#define DISPLAY_SCK_PIN 6    // SPI hardware default
+
+// Opzione B: Software SPI (più lento ma più flessibile)
+#define DISPLAY_CS_PIN 10
+#define DISPLAY_DC_PIN 9
+#define DISPLAY_RST_PIN 8
+#define DISPLAY_BL_PIN 7
+#define DISPLAY_MOSI_PIN 3   // Qualsiasi pin GPIO
+#define DISPLAY_SCK_PIN 4    // Qualsiasi pin GPIO
+*/
+
+// ============================================
+// NOTE IMPORTANTI
+// ============================================
+// 1. GPIO11 e GPIO12 su ESP32-C3 potrebbero essere usati per flash SPI
+//    NON usarli per display SPI - causeranno conflitti!
+//
+// 2. Pin SPI hardware default ESP32-C3:
+//    - MOSI: GPIO7
+//    - MISO: GPIO2
+//    - SCK: GPIO6
+//
+// 3. Se il sistema si resetta in loop durante display->begin():
+//    - I pin sono probabilmente errati
+//    - C'è un conflitto hardware
+//    - Il display potrebbe non essere collegato correttamente
+//
+// 4. Per trovare i pin corretti:
+//    - Consulta la documentazione della board ESP32-C3-MINI-1U
+//    - Cerca lo schematic della board
+//    - Verifica con multimetro i pin del display
+//    - Prova l'esempio Adafruit GC9A01A con pin diversi
+

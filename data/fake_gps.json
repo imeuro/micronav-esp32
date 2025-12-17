@@ -1,0 +1,97 @@
+{
+  "route": [
+    {
+      "lat": 43.660000,
+      "lng": 13.150000,
+      "altitude": 50.0,
+      "speed": 60.0,
+      "course": 45.0,
+      "satellites": 8,
+      "hdop": 1.5
+    },
+    {
+      "lat": 43.661000,
+      "lng": 13.151000,
+      "altitude": 50.0,
+      "speed": 60.0,
+      "course": 45.0,
+      "satellites": 8,
+      "hdop": 1.5
+    },
+    {
+      "lat": 43.662000,
+      "lng": 13.152000,
+      "altitude": 50.0,
+      "speed": 60.0,
+      "course": 45.0,
+      "satellites": 8,
+      "hdop": 1.5
+    },
+    {
+      "lat": 43.663000,
+      "lng": 13.153000,
+      "altitude": 50.0,
+      "speed": 60.0,
+      "course": 45.0,
+      "satellites": 8,
+      "hdop": 1.5
+    },
+    {
+      "lat": 43.663315,
+      "lng": 13.155247,
+      "altitude": 50.0,
+      "speed": 60.0,
+      "course": 45.0,
+      "satellites": 8,
+      "hdop": 1.5
+    },
+    {
+      "lat": 43.664000,
+      "lng": 13.156000,
+      "altitude": 50.0,
+      "speed": 60.0,
+      "course": 45.0,
+      "satellites": 8,
+      "hdop": 1.5
+    },
+    {
+      "lat": 43.665000,
+      "lng": 13.157000,
+      "altitude": 50.0,
+      "speed": 60.0,
+      "course": 45.0,
+      "satellites": 8,
+      "hdop": 1.5
+    },
+    {
+      "lat": 43.665222,
+      "lng": 13.156065,
+      "altitude": 50.0,
+      "speed": 60.0,
+      "course": 45.0,
+      "satellites": 8,
+      "hdop": 1.5
+    },
+    {
+      "lat": 43.666000,
+      "lng": 13.158000,
+      "altitude": 50.0,
+      "speed": 60.0,
+      "course": 45.0,
+      "satellites": 8,
+      "hdop": 1.5
+    },
+    {
+      "lat": 43.667000,
+      "lng": 13.159000,
+      "altitude": 50.0,
+      "speed": 60.0,
+      "course": 45.0,
+      "satellites": 8,
+      "hdop": 1.5
+    }
+  ],
+  "loop": true,
+  "description": "Percorso di test che passa vicino a speedcam a Senigallia (SP12)"
+}
+
