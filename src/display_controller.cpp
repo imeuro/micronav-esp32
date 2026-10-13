@@ -5,19 +5,30 @@
 // Se il file non esiste, la compilazione fallirà - genera con: python3 convert_assets.py
 #include "boot_logo.h"
 
-// Nota: Implementare con libreria display GC9A01 corretta
-// Per ora, implementazione stub che deve essere completata con driver specifico
-// Opzioni:
-// 1. Usare libreria Adafruit_GC9A01 (se disponibile)
-// 2. Implementare driver custom per GC9A01
-// 3. Usare TFT_eSPI con supporto GC9A01
+// Include font personalizzati se abilitati in config.h
+#ifdef CUSTOM_FONT_ENABLED
+// Include diretti - il preprocessore C++ non può usare macro per gli include
+// Se CUSTOM_FONT_NAME è definito, include il font normale
+#ifdef CUSTOM_FONT_NAME
+// Include font normale (big: 16px Black, small: 8px Bold)
+#include "geist_font_big.h"
+#include "geist_font_small.h"
+#endif
+
+// Se CUSTOM_FONT_MONO_NAME è definito, include il font monospaced
+#ifdef CUSTOM_FONT_MONO_NAME
+#include "geist_mono_font.h"
+#endif
+#endif
+
+// Nota: Implementato con libreria Adafruit_GC9A01
 
 DisplayController::DisplayController() :
     display(nullptr),
     is_initialized(false),
     showing_alert(false),
     alert_start_time(0),
-    alert_display_time(10000),  // 10 secondi default
+    alert_display_time(5000),  // 5 secondi default
     gps_has_fix(false),
     gps_satellites(0) {
 }
@@ -212,6 +223,22 @@ bool DisplayController::begin() {
         #endif
     }
     
+    // Imposta font personalizzato se abilitato (default: font normale)
+    #ifdef CUSTOM_FONT_ENABLED
+    #ifdef CUSTOM_FONT_NAME
+    setNormalFont();
+    #ifdef DEBUG_ENABLED
+    if (DEBUG_ENABLED) {
+        Serial.print("[Display] Font normale impostato");
+        #ifdef CUSTOM_FONT_MONO_NAME
+        Serial.print(", font mono disponibile");
+        #endif
+        Serial.println();
+    }
+    #endif
+    #endif
+    #endif
+    
     is_initialized = true;
     
     #ifdef DEBUG_ENABLED
@@ -342,7 +369,6 @@ void DisplayController::showBootLogo(unsigned long display_time_ms) {
     #else
     // Fallback: mostra testo "MicroNav"
     display->setTextColor(COLOR_WHITE);
-    display->setTextSize(2);
     
     // Centra testo "MicroNav"
     int16_t x1, y1;
@@ -469,58 +495,62 @@ void DisplayController::drawSpeedcamAlertContent(const struct Speedcam& speedcam
     
     // Dimensioni alert adattate per 240x240 (vs 320x240 originale)
     // Scala approssimativa: 75% (240/320)
-    int16_t alert_width = 120;  // 160 * 0.75
-    int16_t alert_height = 120; // 160 * 0.75
+    int16_t alert_width = 240;  // 160 * 0.75
+    int16_t alert_height = 80; // 160 * 0.75
     int16_t alert_x = (DISPLAY_WIDTH - alert_width) / 2;  // Centrato
-    int16_t alert_y = 60;
+    int16_t alert_y = (DISPLAY_HEIGHT - alert_height) / 2;
     
     // Background semi-trasparente (simulato con rettangolo grigio scuro)
-    display->fillRect(0, 20, DISPLAY_WIDTH, DISPLAY_HEIGHT - 40, COLOR_DARK_GRAY);
+    // display->fillRect(0, 20, DISPLAY_WIDTH, DISPLAY_HEIGHT - 40, COLOR_DARK_GRAY);
     
     // Rounded rectangle rosso per alert (simulato con rettangolo normale)
-    drawRoundedRectFilled(alert_x, alert_y, alert_width, alert_height, 6, COLOR_MICRONAV_RED_20);
-    drawRoundedRect(alert_x, alert_y, alert_width, alert_height, 6, COLOR_MICRONAV_RED);
+    drawRoundedRectFilled(alert_x, alert_y, alert_width, alert_height, 12, COLOR_MICRONAV_RED);
+    drawRoundedRect(alert_x, alert_y, alert_width, alert_height, 12, COLOR_MICRONAV_RED);
     
-    // Tipo speedcam
+    // Tipo speedcam (usa font normale big)
     const char* type_text = (speedcam.type[0] == 'A') ? "T RED" : "VELOX";
+    setSmallFont();
     display->setTextColor(COLOR_WHITE);
-    display->setTextSize(1);
-    display->setCursor(alert_x + 10, alert_y + 20);
+    display->setCursor(alert_x + 20, alert_y + 20);
     display->print(type_text);
     
-    // Stato (attivo/inattivo)
+    // Stato (attivo/inattivo) - usa font small per testo più piccolo
     const char* status_text = (speedcam.status == 'A') ? "attivo" : "inattivo";
-    display->setCursor(alert_x + 10, alert_y + 35);
+    setSmallFont();
+    display->setTextColor(COLOR_LIGHT_GRAY);
+    display->setCursor(alert_x + 20, alert_y + 35);
     display->print(status_text);
     
-    // Distanza (grande)
+    // Distanza (grande) - usa font mono per numeri
     char distance_str[16];
     snprintf(distance_str, sizeof(distance_str), "%dm", (int)distance);
-    display->setTextSize(2);
-    display->setCursor(alert_x + 10, alert_y + 55);
+    setNormalFont();
+    display->setTextColor(COLOR_WHITE);
+    display->setCursor(alert_x + 20, alert_y + 65);
     display->print(distance_str);
     
     // Indicatore visivo (cerchio)
-    int16_t indicator_size = 38;  // 50 * 0.75
-    int16_t indicator_x = alert_x + alert_width - indicator_size / 2 - 8;
-    int16_t indicator_y = alert_y + 50;
+    int16_t indicator_size = 66;  // 50 * 0.75
+    int16_t indicator_x = alert_x + alert_width - indicator_size / 2 - 20;
+    int16_t indicator_y = alert_y + 40;
     
     // Disegna cerchio con bordo
-    drawCircleWithBorder(indicator_x, indicator_y, indicator_size / 2, COLOR_WHITE, COLOR_RED, 4);
+    drawCircleWithBorder(indicator_x, indicator_y, indicator_size / 2, COLOR_WHITE, COLOR_MICRONAV_RED, 8);
     
     // Mostra limite velocità o icona semaforo
     if (speedcam.type[0] == 'A') {
-        // Tipo A: mostra icona semaforo (per ora testo)
+        // Tipo A: mostra icona semaforo (per ora testo) - usa font normale
+        setNormalFont();
         display->setTextColor(COLOR_BLACK);
-        display->setTextSize(1);
         display->setCursor(indicator_x - 8, indicator_y - 4);
         display->print("TL");
     } else if (speedcam.vmax[0] != '\0' && speedcam.vmax[0] != '/') {
-        // Mostra limite velocità
+        // Mostra limite velocità - usa font mono per numeri
+        setNormalFont();
         display->setTextColor(COLOR_BLACK);
         display->setTextSize(1);
-        int16_t text_x = indicator_x - 6;
-        int16_t text_y = indicator_y - 4;
+        int16_t text_x = indicator_x - 15;
+        int16_t text_y = indicator_y + 10;
         display->setCursor(text_x, text_y);
         display->print(speedcam.vmax);
     }
@@ -530,9 +560,10 @@ void DisplayController::drawGPSInfo() {
     if (!display) return;
     
     // Pulisci solo l'area delle info GPS (righe 170-200) per evitare artefatti
-    display->fillRect(0, 165, DISPLAY_WIDTH, 35, COLOR_BLACK);
+    display->fillRect(0, 170, DISPLAY_WIDTH, 35, COLOR_BLACK);
     
     // Informazioni GPS
+    setSmallFont();
     display->setTextColor(COLOR_WHITE);
     display->setTextSize(1);
     
@@ -542,7 +573,7 @@ void DisplayController::drawGPSInfo() {
     uint16_t w, h;
     display->getTextBounds(gps_status_text, 0, 0, &x1, &y1, &w, &h);
     int16_t center_x = (display->width() - w) / 2;
-    display->setCursor(center_x, 170);
+    display->setCursor(center_x, 190);
     display->print(gps_status_text);
     
     if (gps_has_fix) {
@@ -551,7 +582,7 @@ void DisplayController::drawGPSInfo() {
         snprintf(sat_text, sizeof(sat_text), "Sat: %u", gps_satellites);
         display->getTextBounds(sat_text, 0, 0, &x1, &y1, &w, &h);
         center_x = (display->width() - w) / 2;
-        display->setCursor(center_x, 185);
+        display->setCursor(center_x, 205);
         display->print(sat_text);
     }
 }
@@ -624,4 +655,45 @@ uint16_t DisplayController::fadeColor565(uint16_t color, float fade_factor) {
     
     // Ricostruisci colore RGB565
     return ((r & 0x1F) << 11) | ((g & 0x3F) << 5) | (b & 0x1F);
+}
+
+void DisplayController::setNormalFont() {
+    #ifdef CUSTOM_FONT_ENABLED
+    #ifdef CUSTOM_FONT_NAME
+    if (display) {
+        // Usa font big (16px Black) come font normale
+        display->setFont(&geist_font_big_font);
+    }
+    #endif
+    #endif
+}
+
+void DisplayController::setMonoFont() {
+    #ifdef CUSTOM_FONT_ENABLED
+    #ifdef CUSTOM_FONT_MONO_NAME
+    if (display) {
+        // Usa riferimento diretto al font mono (geist_mono_font)
+        display->setFont(&geist_mono_font);
+    }
+    #else
+    // Se font mono non disponibile, usa font normale
+    setNormalFont();
+    #endif
+    #else
+    // Se font personalizzati non abilitati, usa font di sistema
+    if (display) {
+        display->setFont();
+    }
+    #endif
+}
+
+void DisplayController::setSmallFont() {
+    #ifdef CUSTOM_FONT_ENABLED
+    #ifdef CUSTOM_FONT_NAME
+    if (display) {
+        // Usa font small (8px Bold) per testo più piccolo
+        display->setFont(&geist_font_small_font);
+    }
+    #endif
+    #endif
 }

@@ -114,6 +114,21 @@ private:
      * @return Colore attenuato
      */
     uint16_t fadeColor565(uint16_t color, float fade_factor);
+    
+    /**
+     * Imposta font normale (se disponibile)
+     */
+    void setNormalFont();
+    
+    /**
+     * Imposta font monospaced (se disponibile)
+     */
+    void setMonoFont();
+    
+    /**
+     * Imposta font small (se disponibile)
+     */
+    void setSmallFont();
 };
 
 #endif // DISPLAY_CONTROLLER_H

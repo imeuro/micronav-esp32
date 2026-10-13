@@ -39,7 +39,15 @@
 #define BOOT_LOGO_DISPLAY_TIME 3000  // Tempo visualizzazione boot logo in millisecondi
 #define BOOT_LOGO_FADE_ENABLED true  // Abilita fade-in del boot logo
 #define BOOT_LOGO_FADE_DURATION 500  // Durata fade-in in millisecondi
-#define BOOT_LOGO_FADE_STEPS 12      // Numero di step per fade (più step = più fluido, ma più lento)
+#define BOOT_LOGO_FADE_STEPS 3      // Numero di step per fade (più step = più fluido, ma più lento)
+
+// Font Configuration
+// Per usare font personalizzati (es. Geist e Geist Mono), decommenta e specifica i nomi
+// I font devono essere generati con convert_font.py e inclusi in display_controller.cpp
+// Esempio: se i font si chiamano "geist_font.h" e "geist_mono_font.h", usa:
+#define CUSTOM_FONT_ENABLED
+#define CUSTOM_FONT_NAME geist        // Font normale (senza _font suffix, senza virgolette)
+#define CUSTOM_FONT_MONO_NAME geist_mono  // Font monospaced per numeri/codici (opzionale)
 
 // Display Pin Configuration
 // Configurazione basata su Factory_samples.ino del produttore ESP32-2424S012
@@ -79,7 +87,7 @@
 // Memory Configuration
 // ESP32-C3 ha ~400KB RAM totale, ogni Speedcam è ~24 bytes
 // 2000 speedcam = ~48KB (ragionevole per ESP32-C3)
-#define MAX_SPEEDCAM_COUNT 2000  // Numero massimo speedcam in memoria
+#define MAX_SPEEDCAM_COUNT 500  // Numero massimo speedcam in memoria default 4000
 #define SPEEDCAM_PRE_FILTER_ENABLED true  // Abilita pre-filtraggio geografico
 
 // Pre-filtraggio geografico (bounding box Italia settentrionale)
