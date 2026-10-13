@@ -105,13 +105,20 @@ bool DisplayController::begin() {
     #endif
     delay(50);  // Delay per stabilizzazione prima di creare display
     
-    // Crea oggetto display GC9A01
-    // Nota: Per ESP32-C3, i pin SPI hardware di default sono:
-    // - MOSI: GPIO7
-    // - MISO: GPIO2
-    // - SCK: GPIO6
-    // Il costruttore con 3 parametri usa SPI hardware di default
-    // Se i pin MOSI/SCK sono diversi, usare costruttore con 5 parametri
+    // Crea oggetto display GC9A01 usando SPI HARDWARE (periferica SPI
+    // dell'ESP32-C3, non bit-bang via GPIO).
+    //
+    // IMPORTANTE: il costruttore Adafruit_GC9A01A(cs, dc, mosi, sck, rst) a 5
+    // argomenti usato in precedenza seleziona sempre SPI SOFTWARE (bit-bang),
+    // indipendentemente dal fatto che mosi/sck coincidano con i pin hardware
+    // di default (GPIO7/GPIO6 su ESP32-C3) o meno (vedi Adafruit_SPITFT,
+    // dispatch sul numero di argomenti del costruttore). Il bit-bang via
+    // digitalWrite() e' ordini di grandezza piu' lento della periferica SPI
+    // hardware ed e' la causa piu' probabile del rendering percepito come
+    // lento. Il costruttore a 3 argomenti (CS, DC, RST) usa invece la
+    // periferica SPI hardware di default, che su questa board corrisponde
+    // comunque a MOSI=7/SCK=6 (DISPLAY_MOSI_PIN/DISPLAY_SCK_PIN in config.h
+    // restano solo come documentazione dei pin fisici).
     #ifdef DEBUG_ENABLED
     if (DEBUG_ENABLED) {
         Serial.print("[Display] Creazione oggetto display (CS=");
@@ -120,36 +127,20 @@ bool DisplayController::begin() {
         Serial.print(DISPLAY_DC_PIN);
         Serial.print(", RST=");
         Serial.print(DISPLAY_RST_PIN);
-        #if defined(DISPLAY_MOSI_PIN) && defined(DISPLAY_SCK_PIN)
-        Serial.print(", MOSI=");
+        Serial.print(", SPI=hardware (MOSI=");
         Serial.print(DISPLAY_MOSI_PIN);
         Serial.print(", SCK=");
         Serial.print(DISPLAY_SCK_PIN);
-        #else
-        Serial.print(", SPI=hardware default (MOSI=7, SCK=6)");
-        #endif
+        Serial.print(")");
         Serial.println(")...");
     }
     #endif
-    
-    // Usa costruttore con pin SPI espliciti se definiti, altrimenti usa SPI hardware default
-    #if defined(DISPLAY_MOSI_PIN) && defined(DISPLAY_SCK_PIN) && DISPLAY_MOSI_PIN >= 0 && DISPLAY_SCK_PIN >= 0
-        // Costruttore con pin SPI espliciti
-        display = new Adafruit_GC9A01A(
-            DISPLAY_CS_PIN,
-            DISPLAY_DC_PIN,
-            DISPLAY_MOSI_PIN,
-            DISPLAY_SCK_PIN,
-            DISPLAY_RST_PIN
-        );
-    #else
-        // Costruttore con SPI hardware di default (MOSI=7, SCK=6 su ESP32-C3)
-        display = new Adafruit_GC9A01A(
-            DISPLAY_CS_PIN,
-            DISPLAY_DC_PIN,
-            DISPLAY_RST_PIN
-        );
-    #endif
+
+    display = new Adafruit_GC9A01A(
+        DISPLAY_CS_PIN,
+        DISPLAY_DC_PIN,
+        DISPLAY_RST_PIN
+    );
     
     if (!display) {
         #ifdef DEBUG_ENABLED

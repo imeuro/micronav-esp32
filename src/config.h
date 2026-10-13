@@ -62,8 +62,11 @@
 #define DISPLAY_DC_PIN 2   // cfg.pin_dc = 2
 #define DISPLAY_RST_PIN -1 // cfg.pin_rst = -1 (non usato, ma proviamo 8 se necessario)
 #define DISPLAY_BL_PIN 3   // pinMode(3, OUTPUT); digitalWrite(3, HIGH);
-#define DISPLAY_MOSI_PIN 7 // cfg.pin_mosi = 7
-#define DISPLAY_SCK_PIN 6  // cfg.pin_sclk = 6
+// NOTA: MOSI/SCK non sono piu' passati al costruttore del display (che userebbe
+// SPI software/bit-bang). Coincidono con i pin SPI hardware di default
+// dell'ESP32-C3 e restano qui solo a scopo di documentazione.
+#define DISPLAY_MOSI_PIN 7 // cfg.pin_mosi = 7 (= SPI hardware default)
+#define DISPLAY_SCK_PIN 6  // cfg.pin_sclk = 6 (= SPI hardware default)
 
 // Colori Display (RGB565)
 #define COLOR_BLACK 0x0000
