@@ -473,56 +473,59 @@ void DisplayController::drawSpeedcamAlertContent(const struct Speedcam& speedcam
     // Background semi-trasparente (simulato con rettangolo grigio scuro)
     // display->fillRect(0, 20, DISPLAY_WIDTH, DISPLAY_HEIGHT - 40, COLOR_DARK_GRAY);
     
-    // Rounded rectangle rosso per alert (simulato con rettangolo normale)
-    drawRoundedRectFilled(alert_x, alert_y, alert_width, alert_height, 12, COLOR_MICRONAV_RED);
-    drawRoundedRect(alert_x, alert_y, alert_width, alert_height, 12, COLOR_MICRONAV_RED);
+    // Pulisce l'area dell'alert (sfondo nero, nessun bordo/riquadro visibile)
+    drawRoundedRectFilled(alert_x, alert_y, alert_width, alert_height, 12, COLOR_BLACK);
     
-    // Tipo speedcam (usa font normale big)
+    // NOTA: LovyanGFX usa datum "top_left" di default (Y = cima del testo),
+    // a differenza di Adafruit GFX che con i font custom (GFXfont) posiziona
+    // il cursore sulla baseline. Le coordinate Y qui sotto sono quindi
+    // "cima del testo", non baseline come nella versione Adafruit originale.
+
+    // Tipo speedcam (usa font small)
     const char* type_text = (speedcam.type[0] == 'A') ? "T RED" : "VELOX";
     setSmallFont();
     display->setTextColor(COLOR_WHITE);
-    display->setCursor(alert_x + 20, alert_y + 20);
+    display->setCursor(alert_x + 20, alert_y + 12);
     display->print(type_text);
-    
+
     // Stato (attivo/inattivo) - usa font small per testo più piccolo
     const char* status_text = (speedcam.status == 'A') ? "attivo" : "inattivo";
     setSmallFont();
     display->setTextColor(COLOR_LIGHT_GRAY);
-    display->setCursor(alert_x + 20, alert_y + 35);
+    display->setCursor(alert_x + 20, alert_y + 28);
     display->print(status_text);
-    
-    // Distanza (grande) - usa font mono per numeri
+
+    // Distanza (grande) - usa font normale, allineata a sinistra come il resto
+    // della colonna. Posizionata per restare dentro la fascia rossa (altezza
+    // alert_height=80), con margine dal bordo inferiore.
     char distance_str[16];
     snprintf(distance_str, sizeof(distance_str), "%dm", (int)distance);
     setNormalFont();
     display->setTextColor(COLOR_WHITE);
-    display->setCursor(alert_x + 20, alert_y + 65);
+    display->setCursor(alert_x + 20, alert_y + 46);
     display->print(distance_str);
-    
+
     // Indicatore visivo (cerchio)
     int16_t indicator_size = 66;  // 50 * 0.75
     int16_t indicator_x = alert_x + alert_width - indicator_size / 2 - 20;
     int16_t indicator_y = alert_y + 40;
-    
+
     // Disegna cerchio con bordo
     drawCircleWithBorder(indicator_x, indicator_y, indicator_size / 2, COLOR_WHITE, COLOR_MICRONAV_RED, 8);
-    
-    // Mostra limite velocità o icona semaforo
+
+    // Mostra limite velocità o icona semaforo, centrati nel cerchio con
+    // drawCenterString (centra orizzontalmente in base alla larghezza reale
+    // del testo, invece di un offset fisso stimato a occhio)
     if (speedcam.type[0] == 'A') {
         // Tipo A: mostra icona semaforo (per ora testo) - usa font normale
         setNormalFont();
         display->setTextColor(COLOR_BLACK);
-        display->setCursor(indicator_x - 8, indicator_y - 4);
-        display->print("TL");
+        display->drawCenterString("TL", indicator_x, indicator_y - 15);
     } else if (speedcam.vmax[0] != '\0' && speedcam.vmax[0] != '/') {
-        // Mostra limite velocità - usa font mono per numeri
+        // Mostra limite velocità - usa font normale
         setNormalFont();
         display->setTextColor(COLOR_BLACK);
-        display->setTextSize(1);
-        int16_t text_x = indicator_x - 15;
-        int16_t text_y = indicator_y + 10;
-        display->setCursor(text_x, text_y);
-        display->print(speedcam.vmax);
+        display->drawCenterString(speedcam.vmax, indicator_x, indicator_y - 13);
     }
 }
 
@@ -581,13 +584,15 @@ void DisplayController::drawRoundedRectFilled(int16_t x, int16_t y, int16_t w, i
 
 void DisplayController::drawCircleWithBorder(int16_t x, int16_t y, int16_t radius, uint16_t fill_color, uint16_t border_color, int16_t border_width) {
     if (!display) return;
-    
-    // Disegna cerchio riempito
-    display->fillCircle(x, y, radius, fill_color);
-    
-    // Disegna bordo (cerchi concentrici)
-    for (int16_t i = 0; i < border_width; i++) {
-        display->drawCircle(x, y, radius - i, border_color);
+
+    // Due cerchi pieni sovrapposti invece di cerchi concentrici: disegnare
+    // N outline con drawCircle() a raggi decrescenti lascia dei "buchi" agli
+    // angoli (artefatto dell'algoritmo di Bresenham su raggi ravvicinati).
+    // Un cerchio pieno del colore del bordo, con sopra uno più piccolo del
+    // colore di riempimento, da' lo stesso effetto visivo senza artefatti.
+    display->fillCircle(x, y, radius, border_color);
+    if (radius - border_width > 0) {
+        display->fillCircle(x, y, radius - border_width, fill_color);
     }
 }
 

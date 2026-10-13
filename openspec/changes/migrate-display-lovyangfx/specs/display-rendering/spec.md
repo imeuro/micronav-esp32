@@ -26,7 +26,7 @@ Il sistema SHALL rendere visibile sul pannello fisico ogni elemento grafico dise
 
 #### Scenario: Alert autovelox visibile
 - **WHEN** viene rilevato un autovelox entro il raggio di detection configurato
-- **THEN** il riquadro di alert con tipo, distanza e stato è visibile sul pannello entro un ciclo di aggiornamento del display
+- **THEN** tipo, distanza, stato e l'indicatore circolare (con il limite di velocità o l'icona semaforo) sono visibili sul pannello entro un ciclo di aggiornamento del display, su sfondo nero senza riquadro colorato
 
 ### Requirement: I colori renderizzati corrispondono ai colori richiesti dal firmware
 Il sistema SHALL mostrare sul pannello colori che corrispondono a quelli specificati nel codice (RGB565), senza inversioni o scambi di canale introdotti dal livello di accesso al display.
@@ -37,4 +37,4 @@ Il sistema SHALL mostrare sul pannello colori che corrispondono a quelli specifi
 
 #### Scenario: Colore dell'alert autovelox corretto
 - **WHEN** un alert autovelox viene disegnato
-- **THEN** il riquadro appare nel colore rosso configurato (`COLOR_MICRONAV_RED`), non in un colore alterato
+- **THEN** il bordo del cerchio indicatore appare nel colore rosso configurato (`COLOR_MICRONAV_RED`), non in un colore alterato, senza artefatti (buchi/puntini) lungo il bordo
