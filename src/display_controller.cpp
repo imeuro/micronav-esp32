@@ -94,31 +94,16 @@ bool DisplayController::begin() {
         digitalWrite(DISPLAY_BL_PIN, LOW);  // Backlight SPENTO durante inizializzazione
     }
     
-    // Inizializza SPI per display
-    // NOTA: Non chiamare SPI.begin() qui - la libreria Adafruit lo fa automaticamente
-    // Chiamarlo qui può causare conflitti
-    #ifdef DEBUG_ENABLED
-    if (DEBUG_ENABLED) {
-        Serial.println("[Display] SPI verrà inizializzato dalla libreria...");
-        Serial.flush();
-    }
-    #endif
-    delay(50);  // Delay per stabilizzazione prima di creare display
-    
-    // Crea oggetto display GC9A01 usando SPI HARDWARE (periferica SPI
-    // dell'ESP32-C3, non bit-bang via GPIO).
+    // Crea oggetto display GC9A01 tramite LovyanGFX, con la configurazione
+    // pannello verificata su hardware reale (cfg.invert = true incluso: vedi
+    // src/lgfx_panel_config.h e openspec/changes/migrate-display-lovyangfx/).
     //
-    // IMPORTANTE: il costruttore Adafruit_GC9A01A(cs, dc, mosi, sck, rst) a 5
-    // argomenti usato in precedenza seleziona sempre SPI SOFTWARE (bit-bang),
-    // indipendentemente dal fatto che mosi/sck coincidano con i pin hardware
-    // di default (GPIO7/GPIO6 su ESP32-C3) o meno (vedi Adafruit_SPITFT,
-    // dispatch sul numero di argomenti del costruttore). Il bit-bang via
-    // digitalWrite() e' ordini di grandezza piu' lento della periferica SPI
-    // hardware ed e' la causa piu' probabile del rendering percepito come
-    // lento. Il costruttore a 3 argomenti (CS, DC, RST) usa invece la
-    // periferica SPI hardware di default, che su questa board corrisponde
-    // comunque a MOSI=7/SCK=6 (DISPLAY_MOSI_PIN/DISPLAY_SCK_PIN in config.h
-    // restano solo come documentazione dei pin fisici).
+    // NOTA STORICA: in precedenza si usava Adafruit_GC9A01A, ma non
+    // inizializzava correttamente questo pannello specifico (mancava
+    // l'inversione colore, tra altro). Dopo uno spegnimento/riaccensione
+    // completo (non un semplice reset software) lo schermo restava nero e
+    // nessun disegno (testo, forme) era mai visibile. Verificato su
+    // hardware reale che LovyanGFX, con questa config, risolve il problema.
     #ifdef DEBUG_ENABLED
     if (DEBUG_ENABLED) {
         Serial.print("[Display] Creazione oggetto display (CS=");
@@ -127,21 +112,16 @@ bool DisplayController::begin() {
         Serial.print(DISPLAY_DC_PIN);
         Serial.print(", RST=");
         Serial.print(DISPLAY_RST_PIN);
-        Serial.print(", SPI=hardware (MOSI=");
+        Serial.print(", SPI hardware MOSI=");
         Serial.print(DISPLAY_MOSI_PIN);
         Serial.print(", SCK=");
         Serial.print(DISPLAY_SCK_PIN);
-        Serial.print(")");
         Serial.println(")...");
     }
     #endif
 
-    display = new Adafruit_GC9A01A(
-        DISPLAY_CS_PIN,
-        DISPLAY_DC_PIN,
-        DISPLAY_RST_PIN
-    );
-    
+    display = new LGFX();
+
     if (!display) {
         #ifdef DEBUG_ENABLED
         if (DEBUG_ENABLED) {
@@ -150,54 +130,60 @@ bool DisplayController::begin() {
         #endif
         return false;
     }
-    
-    // Inizializza display
-    // Nota: begin() restituisce void, non bool
-    // IMPORTANTE: begin() può richiedere tempo e potrebbe causare reset watchdog
+
+    // Inizializza display (init() restituisce bool)
+    // IMPORTANTE: init() può richiedere tempo e potrebbe causare reset watchdog
     #ifdef DEBUG_ENABLED
     if (DEBUG_ENABLED) {
-        Serial.println("[Display] Chiamata display->begin()...");
+        Serial.println("[Display] Chiamata display->init()...");
         Serial.flush();
     }
     #endif
-    
-    // Feed watchdog prima di begin() per evitare reset
+
+    // Feed watchdog prima di init() per evitare reset
     #ifdef ESP32
     yield();  // Feed watchdog
     #endif
-    
-    // Prova inizializzazione con timeout implicito
-    // Se begin() blocca, il watchdog resetterà il sistema
-    display->begin();
-    
+
+    bool init_ok = display->init();
+
     #ifdef ESP32
-    yield();  // Feed watchdog dopo begin()
+    yield();  // Feed watchdog dopo init()
     #endif
-    
+
+    if (!init_ok) {
+        #ifdef DEBUG_ENABLED
+        if (DEBUG_ENABLED) {
+            Serial.println("[Display] ERRORE: display->init() fallito!");
+        }
+        #endif
+        return false;
+    }
+
     // Pulisci IMMEDIATAMENTE lo schermo per evitare puntini casuali all'avvio
     // Fallo prima di qualsiasi altra operazione e PRIMA di accendere il backlight
     display->fillScreen(COLOR_BLACK);
     delay(10);  // Delay per permettere l'aggiornamento
-    
+
     delay(50);  // Delay per stabilizzazione hardware dopo pulizia
-    
+
     #ifdef DEBUG_ENABLED
     if (DEBUG_ENABLED) {
-        Serial.println("[Display] display->begin() completato");
+        Serial.println("[Display] display->init() completato");
         Serial.flush();
     }
     #endif
-    
+
     #ifdef DEBUG_ENABLED
     if (DEBUG_ENABLED) {
         Serial.println("[Display] Configurazione display...");
     }
     #endif
-    
+
     // Configura display
     display->setRotation(0);  // Orientamento normale
     delay(10);
-    
+
     // Pulisci nuovamente lo schermo per sicurezza
     display->fillScreen(COLOR_BLACK);
     delay(10);
@@ -311,7 +297,7 @@ void DisplayController::showBootLogo(unsigned long display_time_ms) {
                     row_buffer[x] = fadeColor565(original_color, fade_factor);
                 }
                 // Invia riga completa in batch
-                display->writePixels(row_buffer, width, true, false);
+                display->writePixels(row_buffer, width, true);
             }
             
             display->endWrite();
@@ -337,7 +323,7 @@ void DisplayController::showBootLogo(unsigned long display_time_ms) {
                 row_buffer[x] = pgm_read_word(&boot_logo_data[idx]);
             }
             // Invia riga completa in batch (MOLTO più veloce di pixel singoli!)
-            display->writePixels(row_buffer, width, true, false);
+            display->writePixels(row_buffer, width, true);
         }
         
         display->endWrite();
@@ -360,16 +346,9 @@ void DisplayController::showBootLogo(unsigned long display_time_ms) {
     #else
     // Fallback: mostra testo "MicroNav"
     display->setTextColor(COLOR_WHITE);
-    
+
     // Centra testo "MicroNav"
-    int16_t x1, y1;
-    uint16_t w, h;
-    display->getTextBounds("MicroNav", 0, 0, &x1, &y1, &w, &h);
-    int16_t x = (DISPLAY_WIDTH - w) / 2;
-    int16_t y = (DISPLAY_HEIGHT - h) / 2;
-    
-    display->setCursor(x, y);
-    display->print("MicroNav");
+    display->drawCenterString("MicroNav", DISPLAY_WIDTH / 2, DISPLAY_HEIGHT / 2);
     #ifdef DEBUG_ENABLED
     if (DEBUG_ENABLED) {
         Serial.println("[Display] Boot logo non disponibile, uso testo fallback");
@@ -560,21 +539,14 @@ void DisplayController::drawGPSInfo() {
     
     // Centra la scritta "GPS: ..." orizzontalmente usando la larghezza dello schermo
     const char* gps_status_text = gps_has_fix ? "GPS: Fix OK" : "GPS: In attesa...";
-    int16_t x1, y1;
-    uint16_t w, h;
-    display->getTextBounds(gps_status_text, 0, 0, &x1, &y1, &w, &h);
-    int16_t center_x = (display->width() - w) / 2;
-    display->setCursor(center_x, 190);
-    display->print(gps_status_text);
-    
+    int16_t center_x = display->width() / 2;
+    display->drawCenterString(gps_status_text, center_x, 190);
+
     if (gps_has_fix) {
         // Centra la scritta "Sat: X" rispetto allo schermo
         char sat_text[16];
         snprintf(sat_text, sizeof(sat_text), "Sat: %u", gps_satellites);
-        display->getTextBounds(sat_text, 0, 0, &x1, &y1, &w, &h);
-        center_x = (display->width() - w) / 2;
-        display->setCursor(center_x, 205);
-        display->print(sat_text);
+        display->drawCenterString(sat_text, center_x, 205);
     }
 }
 
@@ -597,20 +569,14 @@ void DisplayController::drawGPSIndicator(bool has_fix, uint8_t satellites) {
 
 void DisplayController::drawRoundedRect(int16_t x, int16_t y, int16_t w, int16_t h, int16_t radius, uint16_t color) {
     if (!display) return;
-    
-    // Simulazione rounded rectangle (Adafruit GFX non ha rounded rect nativo)
-    // Disegna rettangolo normale per ora
-    // TODO: Implementare rounded rectangle manualmente se necessario
-    display->drawRect(x, y, w, h, color);
+
+    display->drawRoundRect(x, y, w, h, radius, color);
 }
 
 void DisplayController::drawRoundedRectFilled(int16_t x, int16_t y, int16_t w, int16_t h, int16_t radius, uint16_t color) {
     if (!display) return;
-    
-    // Simulazione rounded rectangle filled
-    // Disegna rettangolo riempito per ora
-    // TODO: Implementare rounded rectangle filled manualmente se necessario
-    display->fillRect(x, y, w, h, color);
+
+    display->fillRoundRect(x, y, w, h, radius, color);
 }
 
 void DisplayController::drawCircleWithBorder(int16_t x, int16_t y, int16_t radius, uint16_t fill_color, uint16_t border_color, int16_t border_width) {

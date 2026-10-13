@@ -2,11 +2,10 @@
 #define DISPLAY_CONTROLLER_H
 
 #include <Arduino.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_GC9A01A.h>
 #include <SPI.h>
 #include <LittleFS.h>
 #include "config.h"
+#include "lgfx_panel_config.h"
 
 // Forward declaration
 struct Speedcam;
@@ -60,7 +59,7 @@ public:
     void updateGPSIndicator(bool has_fix, uint8_t satellites);
 
 private:
-    Adafruit_GC9A01A* display;
+    LGFX* display;
     bool is_initialized;
     
     // Stato corrente
@@ -88,7 +87,7 @@ private:
     void drawGPSIndicator(bool has_fix, uint8_t satellites);
     
     /**
-     * Disegna rounded rectangle (simulazione, Adafruit GFX non ha rounded rect nativo)
+     * Disegna rounded rectangle (nativo, via LovyanGFX drawRoundRect)
      */
     void drawRoundedRect(int16_t x, int16_t y, int16_t w, int16_t h, int16_t radius, uint16_t color);
     

@@ -125,7 +125,7 @@ Vedi [README_ARDUINO_IDE.md](README_ARDUINO_IDE.md) per istruzioni complete.
 
 **Quick Start Arduino IDE:**
 1. Installa ESP32 board support in Arduino IDE
-2. Installa librerie: Adafruit GFX, Adafruit GC9A01A, ArduinoJson, TinyGPSPlus
+2. Installa librerie: LovyanGFX, ArduinoJson, TinyGPSPlus
 3. Installa ESP32 LittleFS Data Upload tool
 4. Apri `micronav_esp32.ino`
 5. Configura scheda: ESP32C3 Dev Module
@@ -136,15 +136,13 @@ Vedi [README_ARDUINO_IDE.md](README_ARDUINO_IDE.md) per istruzioni complete.
 Installa le seguenti librerie con Arduino CLI:
 
 ```bash
-arduino-cli lib install "Adafruit GFX Library"
-arduino-cli lib install "Adafruit GC9A01A"
+arduino-cli lib install "LovyanGFX@1.2.33"
 arduino-cli lib install "ArduinoJson"
 arduino-cli lib install "TinyGPSPlus"
 ```
 
 **Librerie richieste:**
-- **Adafruit GFX Library** (v1.11.9+): Grafica base per display
-- **Adafruit GC9A01A** (v1.0.0+): Driver display GC9A01
+- **LovyanGFX** (v1.2.33+, la 1.1.5 non compila con il core ESP32 Arduino attuale): Driver display GC9A01
 - **ArduinoJson** (v7.0.0+): Parsing JSON per database speedcam
 - **TinyGPSPlus** (v1.0.3+): Parsing NMEA da GPS
 
@@ -281,7 +279,7 @@ ls /dev/ttyUSB* /dev/ttyACM*
 ### Display
 - **Risoluzione**: 240x240 (vs 320x240 originale Raspberry Pi)
 - **Layout**: Scalato proporzionalmente
-- **Driver**: GC9A01 con Adafruit GFX Library
+- **Driver**: GC9A01 con LovyanGFX
 - **Boot logo**: Compilato nel firmware (boot_logo.h)
 
 ### Partizioni Flash

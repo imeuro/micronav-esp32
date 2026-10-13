@@ -2,12 +2,12 @@
 
 ## 1. Setup libreria e classe pannello
 
-- [ ] 1.1 Aggiungere LovyanGFX (>=1.2.33) a `setup_arduino_cli.sh` — verify: `arduino-cli lib list` mostra LovyanGFX >=1.2.33 installata
-- [ ] 1.2 Creare la classe `LGFX` in `display_controller.cpp` (o header dedicato), con la configurazione pannello esatta verificata in `lovyangfx_boot_test/` (pin, `cfg.invert = true`, `spi_3wire = true`) — verify: il progetto compila con `./build.sh`
+- [x] 1.1 Aggiungere LovyanGFX (>=1.2.33) a `setup_arduino_cli.sh` — verify: `arduino-cli lib list` mostra LovyanGFX >=1.2.33 installata
+- [x] 1.2 Creare la classe `LGFX` in `display_controller.cpp` (o header dedicato), con la configurazione pannello esatta verificata in `lovyangfx_boot_test/` (pin, `cfg.invert = true`, `spi_3wire = true`) — verify: il progetto compila con `./build.sh`
 
 ## 2. Sostituzione del driver in DisplayController
 
-- [ ] 2.1 Sostituire il membro `Adafruit_GC9A01A* display` con un'istanza `LGFX`, aggiornare `DisplayController::begin()` di conseguenza — verify: `./build.sh` compila, log seriale mostra "Display inizializzato con successo"
+- [x] 2.1 Sostituire il membro `Adafruit_GC9A01A* display` con un'istanza `LGFX`, aggiornare `DisplayController::begin()` di conseguenza — verify: `./build.sh` compila, log seriale mostra "Display inizializzato con successo"
 - [ ] 2.2 Verificare su hardware reale l'inizializzazione dopo un ciclo di alimentazione completo (scollega/ricollega USB, non solo reset) — verify: il boot logo compare dopo lo spegnimento/riaccensione completo, non solo dopo un soft reset
 
 ## 3. Boot logo
@@ -31,7 +31,7 @@
 
 ## 7. Pulizia dipendenze e documentazione
 
-- [ ] 7.1 Rimuovere `Adafruit GC9A01A` e `Adafruit GFX Library` da `setup_arduino_cli.sh` e `ARDUINO_CLI_SETUP.md` — verify: documentazione e script coerenti, nessun riferimento residuo alle librerie Adafruit per il display
+- [x] 7.1 Rimuovere `Adafruit GC9A01A` e `Adafruit GFX Library` da `setup_arduino_cli.sh` e `ARDUINO_CLI_SETUP.md` — verify: documentazione e script coerenti, nessun riferimento residuo alle librerie Adafruit per il display
 - [ ] 7.2 Aggiornare `NOTE_IMPLEMENTAZIONE.md` per riflettere la migrazione completata (rimuovere lo stato "bug noto", descrivere lo stato attuale basato su LovyanGFX) — verify: documento aggiornato, nessun riferimento residuo a "Adafruit_GC9A01A in uso nel firmware principale"
 
 ## 8. Integration Verification
