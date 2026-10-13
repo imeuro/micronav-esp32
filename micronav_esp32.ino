@@ -14,21 +14,18 @@ GPSController* gps_controller = nullptr;
 SpeedcamController* speedcam_controller = nullptr;
 DisplayController* display_controller = nullptr;
 
-// Callback per aggiornamento posizione GPS
-void onGPSPositionUpdate(const GPSPosition& position) {
-    // Aggiorna display con nuovo stato GPS
-    if (display_controller) {
-        display_controller->updateGPSIndicator(
-            position.is_valid && position.satellites >= GPS_MIN_SATELLITES,
-            position.satellites
-        );
-    }
-    
-    // Verifica speedcam (se posizione valida)
-    if (position.is_valid && speedcam_controller) {
-        speedcam_controller->checkSpeedcams(&position);
-    }
-}
+// NOTA IMPORTANTE: non registriamo una callback GPSController::setPositionUpdateCallback
+// che tocchi il display. Verificato empiricamente su hardware reale (ESP32-2424S012):
+// qualsiasi chiamata a display_controller da dentro quella callback (invocata da
+// GPSController::update() -> updateFakePosition()/updatePosition()) non produce
+// alcun disegno visibile sul pannello fisico, pur senza errori, crash o reset, e
+// con stack abbondante (>24KB liberi, misurato con uxTaskGetStackHighWaterMark).
+// La causa esatta nello stack SPI/ESP32 Arduino core non è stata identificata, ma
+// spostando lo stesso lavoro nel loop() principale (contesto "superficiale",
+// non annidato dentro la callback) il rendering funziona regolarmente. Per questo
+// l'aggiornamento dell'indicatore GPS e il check speedcam vengono fatti entrambi
+// qui in loop(), leggendo la posizione con gps_controller->getPosition() dopo
+// gps_controller->update().
 
 void setup() {
     // Inizializza Serial per debug PRIMA di tutto
@@ -42,6 +39,10 @@ void setup() {
     Serial.println("\n\n\n");
     Serial.println("========================================");
     Serial.println("MicroNav ESP32-C3 Speedcam Detection");
+    Serial.print("Build: ");
+    Serial.print(__DATE__);
+    Serial.print(" ");
+    Serial.println(__TIME__);
     Serial.println("========================================");
     Serial.print("Baudrate: ");
     Serial.println(115200);
@@ -129,12 +130,6 @@ void setup() {
     #endif
     delay(100);
     
-    // Imposta callback per aggiornamento posizione GPS
-    Serial.println("[Setup] Impostazione callback GPS...");
-    Serial.flush();
-    gps_controller->setPositionUpdateCallback(onGPSPositionUpdate);
-    delay(100);
-    
     // 4. Inizializza Speedcam controller
     Serial.println("[Setup] Inizializzazione Speedcam controller...");
     Serial.flush();
@@ -199,12 +194,19 @@ void loop() {
     
     // 1. Aggiorna GPS (legge seriale e parse NMEA)
     gps_controller->update();
-    
-    // 2. Se GPS ha fix, verifica speedcam (callback viene chiamato automaticamente)
-    // Ma facciamo anche un check manuale periodico
+
+    // 2. Aggiorna indicatore GPS sul display (vedi nota sopra sul perché questo
+    // non viene fatto da una callback di GPSController)
+    GPSPosition current_position = gps_controller->getPosition();
+    display_controller->updateGPSIndicator(
+        current_position.is_valid && current_position.satellites >= GPS_MIN_SATELLITES,
+        current_position.satellites
+    );
+
+    // 3. Verifica speedcam periodicamente
     static unsigned long last_speedcam_check = 0;
     if (millis() - last_speedcam_check > SPEEDCAM_CHECK_INTERVAL) {
-        GPSPosition position = gps_controller->getPosition();
+        GPSPosition position = current_position;
         // In modalità fake, la posizione è sempre valida anche se hasFix() potrebbe non essere true
         // Verifica direttamente is_valid invece di hasFix()
         if (position.is_valid) {
@@ -223,9 +225,9 @@ void loop() {
         last_speedcam_check = millis();
     }
     
-    // 3. Aggiorna display (gestisce timeout alert, ecc.)
+    // 4. Aggiorna display (gestisce timeout alert, ecc.)
     display_controller->update();
-    
-    // 4. Piccolo delay per evitare loop troppo veloce
+
+    // 5. Piccolo delay per evitare loop troppo veloce
     delay(MAIN_LOOP_DELAY);
 }
