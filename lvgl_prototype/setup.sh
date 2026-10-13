@@ -43,11 +43,8 @@ arduino-cli core install esp32:esp32
 # Installa librerie necessarie
 echo -e "${YELLOW}Installazione librerie...${NC}"
 
-echo "  - Adafruit GFX Library..."
-arduino-cli lib install "Adafruit GFX Library"
-
-echo "  - Adafruit GC9A01A..."
-arduino-cli lib install "Adafruit GC9A01A"
+echo "  - LovyanGFX..."
+arduino-cli lib install "LovyanGFX@1.2.33"
 
 echo "  - LVGL..."
 # Prova a installare LVGL 8.3.3

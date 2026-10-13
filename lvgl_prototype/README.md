@@ -1,14 +1,19 @@
 # Prototipo LVGL per ESP32-C3 (pre-integrazione)
 
 > **Stato**: prototipo di valutazione, non ancora integrato nel firmware principale
-> (`micronav_esp32.ino`), che oggi usa Adafruit GFX. Vedi `NOTE_IMPLEMENTAZIONE.md`
-> nella cartella principale per il contesto della migrazione.
+> (`micronav_esp32.ino`), che usa la stessa classe `LGFX` (LovyanGFX) condivisa
+> da `../src/lgfx_panel_config.h` per il rendering non-LVGL. Vedi
+> `NOTE_IMPLEMENTAZIONE.md` nella cartella principale per il contesto della
+> migrazione a LVGL.
 
 Dimostra l'uso di LVGL 8.3.3 con ESP32-C3 DevKitM-1, display GC9A01 240x240
 onboard e **touchscreen capacitivo CST816S (I2C)**, utilizzando Arduino CLI.
-Il flush del display verso LVGL usa `Adafruit_GC9A01A` come backend SPI
-(non TFT_eSPI). La UI (2 schermate) è generata con **SquareLine Studio**
-(`ui.c`, `ui_Screen1.*`, `ui_Screen2.*`).
+Il flush del display verso LVGL usa **LovyanGFX** come backend SPI (la
+stessa classe `LGFX` usata dal firmware principale, non Adafruit_GC9A01A:
+quella libreria non inizializzava correttamente questo pannello dopo uno
+spegnimento/riaccensione completo — vedi `NOTE_IMPLEMENTAZIONE.md`). La UI
+(2 schermate) è generata con **SquareLine Studio** (`ui.c`, `ui_Screen1.*`,
+`ui_Screen2.*`).
 
 ## Requisiti
 
@@ -43,8 +48,7 @@ Questo script:
 - Verifica che Arduino CLI sia installato
 - Configura ESP32 board manager
 - Installa ESP32 core
-- Installa Adafruit GFX Library
-- Installa Adafruit GC9A01A
+- Installa LovyanGFX (>=1.2.33)
 - Tenta di installare LVGL 8.3.3
 
 ### 2. Installazione Manuale LVGL 8.3.3 (se necessario)
@@ -109,7 +113,7 @@ lvgl_prototype/
 
 Il progetto implementa:
 
-1. **Inizializzazione display GC9A01** tramite Adafruit_GC9A01A come backend di flush LVGL
+1. **Inizializzazione display GC9A01** tramite LovyanGFX (classe `LGFX` condivisa) come backend di flush LVGL
 2. **Inizializzazione LVGL 8.3.3** con driver display personalizzato
 3. **Buffer doppio** per rendering fluido (240x10 pixel per buffer)
 4. **Touch capacitivo CST816S** via I2C, con debug seriale dettagliato (stato I2C, coordinate raw)
@@ -122,7 +126,7 @@ Il progetto configura LVGL con:
 - **Risoluzione**: 240x240 pixel
 - **Colori**: RGB565 (16 bit)
 - **Buffer**: Doppio buffer circolare (circa 11KB per buffer)
-- **Driver**: Personalizzato per GC9A01 tramite Adafruit_GC9A01A
+- **Driver**: Personalizzato per GC9A01 tramite LovyanGFX
 
 ## Troubleshooting
 
@@ -153,14 +157,14 @@ Il progetto configura LVGL con:
 
 ## Note Tecniche
 
-- LVGL 8.3.3 richiede configurazione manuale del driver display (non c'è driver nativo GC9A01)
-- Il driver personalizzato usa `Adafruit_GC9A01A` per comunicare con il display
+- LVGL 8.3.3 richiede configurazione manuale del driver display (non c'è driver nativo GC9A01 in questa versione)
+- Il driver personalizzato usa `LovyanGFX` (classe `LGFX` in `../src/lgfx_panel_config.h`) per comunicare con il display
 - Il buffer LVGL è configurato per 240x10 pixel (circa 11KB per buffer)
 - Il loop principale chiama `lv_timer_handler()` ogni 5ms per aggiornare il display
 
 ## Riferimenti
 
 - [LVGL Documentation](https://docs.lvgl.io/8.3/)
-- [Adafruit GC9A01A Library](https://github.com/adafruit/Adafruit_GC9A01A)
+- [LovyanGFX](https://github.com/lovyan03/LovyanGFX)
 - [ESP32-C3 Documentation](https://docs.espressif.com/projects/esp-idf/en/latest/esp32c3/)
 

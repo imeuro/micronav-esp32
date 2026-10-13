@@ -13,17 +13,11 @@
 // Includi configurazione LVGL personalizzata
 // Il file lv_conf.h nella stessa cartella verrà usato automaticamente da LVGL
 #include <lvgl.h>
-#include <Adafruit_GC9A01A.h>
-#include <Adafruit_GFX.h>
+#include "../src/lgfx_panel_config.h"  // Classe LGFX condivisa col firmware principale
 #include "ui.h" // SquareLine Studio
 
-// Configurazione pin display (stessa del progetto principale)
-#define DISPLAY_CS_PIN 10
-#define DISPLAY_DC_PIN 2
-#define DISPLAY_RST_PIN -1  // Non usato
-#define DISPLAY_BL_PIN 3    // Backlight
-#define DISPLAY_MOSI_PIN 7
-#define DISPLAY_SCK_PIN 6
+// Backlight (non fa parte della config pannello LGFX, gestito a parte)
+#define DISPLAY_BL_PIN 3
 
 // Configurazione pin touchscreen (I2C)
 // NOTA: Verifica i pin corretti per il tuo hardware
@@ -45,9 +39,10 @@
 // Buffer per LVGL (circa 11KB per 240x10 pixel)
 #define LVGL_BUFFER_SIZE (DISPLAY_WIDTH * 10)
 
-// Oggetto display Adafruit
-// Usa costruttore con pin SPI espliciti (MOSI, SCK)
-Adafruit_GC9A01A tft(DISPLAY_CS_PIN, DISPLAY_DC_PIN, DISPLAY_MOSI_PIN, DISPLAY_SCK_PIN, DISPLAY_RST_PIN);
+// Oggetto display: classe LGFX condivisa (config pannello verificata su
+// hardware reale, inclusa cfg.invert = true - vedi src/lgfx_panel_config.h
+// e openspec/specs/display-rendering/spec.md)
+LGFX tft;
 
 // Buffer LVGL
 static lv_disp_draw_buf_t draw_buf;
@@ -104,8 +99,9 @@ void my_disp_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color
     for (uint32_t y = 0; y < h; y++) {
         // Converti lv_color_t* a uint16_t* per questa riga
         uint16_t *row = (uint16_t *)&color_p[y * w];
-        // Scrivi la riga
-        tft.writePixels(row, w, true, false);
+        // Scrivi la riga (swap=true: i buffer LVGL usano lo stesso ordine
+        // di byte colore di Adafruit GFX, verificato nel firmware principale)
+        tft.writePixels(row, w, true);
     }
     
     // Termina scrittura SPI
@@ -270,13 +266,11 @@ void setup() {
     digitalWrite(DISPLAY_BL_PIN, LOW);  // Backlight spento durante inizializzazione
     
     Serial.println("[Setup] Inizializzazione display GC9A01...");
-    
-    // NOTA: Non chiamare SPI.begin() qui - la libreria Adafruit lo fa automaticamente
-    // Chiamarlo qui può causare conflitti
-    
-    // Inizializza display
-    // Nota: begin() restituisce void, non bool
-    tft.begin();
+
+    // Inizializza display (init() restituisce bool)
+    bool display_ok = tft.init();
+    Serial.print("[Setup] tft.init() risultato: ");
+    Serial.println(display_ok ? "OK" : "FALLITO");
 
     // Pulisci schermo
     tft.fillScreen(0x0000);  // Nero
