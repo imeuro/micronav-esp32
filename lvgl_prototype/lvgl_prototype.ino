@@ -15,9 +15,26 @@
 #include <lvgl.h>
 #include "../src/lgfx_panel_config.h"  // Classe LGFX condivisa col firmware principale
 #include "ui.h" // SquareLine Studio
+#include "ui_micronav.h" // Layout alternativo, ricalcato sull'app reale
+
+// 1 = usa il layout ui_micronav (idle/alert come il firmware reale)
+// 0 = usa la UI originale generata da SquareLine Studio (ui_init())
+#define USE_MICRONAV_LAYOUT 1
 
 // Backlight (non fa parte della config pannello LGFX, gestito a parte)
+// Pilotato via PWM (ledcAttach/ledcWrite) invece di digitalWrite on/off,
+// per permettere la regolazione di luminosita' dalla schermata impostazioni
 #define DISPLAY_BL_PIN 3
+#define BACKLIGHT_PWM_FREQ 5000
+#define BACKLIGHT_PWM_RESOLUTION 8  // 0-255
+
+// Converte una percentuale (10-100) in duty cycle PWM (0-255) e la applica
+void set_backlight_brightness(int percent) {
+    if (percent < 10) percent = 10;
+    if (percent > 100) percent = 100;
+    uint32_t duty = (uint32_t)((percent * 255L) / 100);
+    ledcWrite(DISPLAY_BL_PIN, duty);
+}
 
 // Configurazione pin touchscreen (I2C)
 // NOTA: Verifica i pin corretti per il tuo hardware
@@ -252,45 +269,63 @@ void my_touchpad_read(lv_indev_drv_t *indev_drv, lv_indev_data_t *data) {
 /**
  * Setup iniziale
  */
+// DEBUG TEMPORANEO: timestamp ai checkpoint di setup() per capire dove va
+// il tempo durante un avvio lento/variabile. Da rimuovere una volta
+// isolata la causa.
+static void log_checkpoint(const char *label) {
+    Serial.print("[T] ");
+    Serial.print(label);
+    Serial.print(" @ ");
+    Serial.println(millis());
+}
+
 void setup() {
     // Inizializza Serial per debug
     Serial.begin(115200);
+    Serial.setTxTimeoutMs(0);  // senza monitor aperto la CDC USB bloccherebbe ogni print (avvio lento)
     delay(2000);  // Attendi che Serial sia pronto
-    
+    log_checkpoint("Serial pronto");
+
     Serial.println("\n\n========================================");
     Serial.println("LVGL 8.3.3 Hello World - ESP32-C3");
     Serial.println("========================================\n");
 
-    // Inizializza backlight (ma NON accenderlo ancora)
-    pinMode(DISPLAY_BL_PIN, OUTPUT);
-    digitalWrite(DISPLAY_BL_PIN, LOW);  // Backlight spento durante inizializzazione
-    
+    // Inizializza backlight via PWM (ma NON accenderlo ancora)
+    ledcAttach(DISPLAY_BL_PIN, BACKLIGHT_PWM_FREQ, BACKLIGHT_PWM_RESOLUTION);
+    ledcWrite(DISPLAY_BL_PIN, 0);  // Backlight spento durante inizializzazione
+    log_checkpoint("Backlight OFF");
+
     Serial.println("[Setup] Inizializzazione display GC9A01...");
 
     // Inizializza display (init() restituisce bool)
     bool display_ok = tft.init();
+    log_checkpoint("tft.init() completato");
     Serial.print("[Setup] tft.init() risultato: ");
     Serial.println(display_ok ? "OK" : "FALLITO");
 
     // Pulisci schermo
     tft.fillScreen(0x0000);  // Nero
+    log_checkpoint("fillScreen completato");
 
     Serial.println("[Setup] Display inizializzato con successo!");
-    
+
     // Imposta orientamento (0 = normale)
     tft.setRotation(0);
 
     // Accendi backlight DOPO che il display è inizializzato e pulito
-    digitalWrite(DISPLAY_BL_PIN, HIGH);
+    // (luminosità iniziale 80%, regolabile poi dalla schermata impostazioni)
+    set_backlight_brightness(80);
+    log_checkpoint("Backlight ON");
 
     Serial.println("[Setup] Inizializzazione LVGL...");
-    
+
     // Inizializza LVGL
     lv_init();
-    
+    log_checkpoint("lv_init() completato");
+
     // Inizializza buffer di disegno (doppio buffer per rendering fluido)
     lv_disp_draw_buf_init(&draw_buf, buf1, buf2, LVGL_BUFFER_SIZE);
-    
+
     Serial.println("[Setup] Buffer LVGL inizializzati");
     
     // Inizializza display driver
@@ -308,19 +343,21 @@ void setup() {
     
     // Registra display driver
     lv_disp_drv_register(&disp_drv);
-    
+    log_checkpoint("lv_disp_drv_register completato");
+
     Serial.println("[Setup] Display driver LVGL registrato");
-    
+
     // Inizializza I2C per touchscreen
     Serial.println("[Setup] Inizializzazione I2C per touchscreen...");
     Serial.print("[Setup] Pin I2C - SDA: ");
     Serial.print(TOUCH_SDA_PIN);
     Serial.print(", SCL: ");
     Serial.println(TOUCH_SCL_PIN);
-    
+
     Wire.begin(TOUCH_SDA_PIN, TOUCH_SCL_PIN);
     delay(100);
-    
+    log_checkpoint("Wire.begin completato");
+
     // Inizializza touchscreen CST816S se presente
     Wire.beginTransmission(CST816S_ADDR);
     if (Wire.endTransmission() == 0) {
@@ -339,46 +376,17 @@ void setup() {
         }
         Serial.println("[Setup] CST816S inizializzato");
     }
+    log_checkpoint("Check CST816S completato");
     
-    // Scanner I2C: cerca dispositivi I2C collegati
-    Serial.println("[Setup] Scansione bus I2C...");
-    byte devices_found = 0;
-    for (byte address = 1; address < 127; address++) {
-        Wire.beginTransmission(address);
-        byte error = Wire.endTransmission();
-        
-        if (error == 0) {
-            Serial.print("[Setup] Dispositivo I2C trovato all'indirizzo 0x");
-            if (address < 16) Serial.print("0");
-            Serial.print(address, HEX);
-            Serial.print(" (");
-            Serial.print(address);
-            Serial.println(")");
-            devices_found++;
-            
-            // Indirizzi comuni touchscreen
-            if (address == 0x15) {
-                Serial.println("[Setup] ✓ Probabilmente CST816S touchscreen!");
-            } else if (address == 0x38) {
-                Serial.println("[Setup] ✓ Probabilmente FT5x06 touchscreen!");
-            } else if (address == 0x5D || address == 0x5C) {
-                Serial.println("[Setup] ✓ Potrebbe essere un touchscreen!");
-            }
-        }
-    }
-    
-    if (devices_found == 0) {
-        Serial.println("[Setup] ⚠️ Nessun dispositivo I2C trovato!");
-        Serial.println("[Setup] Verifica:");
-        Serial.println("[Setup]   1. Pin I2C corretti (SDA/SCL)");
-        Serial.println("[Setup]   2. Collegamenti hardware");
-        Serial.println("[Setup]   3. Alimentazione touchscreen");
-        Serial.println("[Setup]   4. Prova altri pin (es. 8,9 o 11,12)");
-    } else {
-        Serial.print("[Setup] Totale dispositivi I2C trovati: ");
-        Serial.println(devices_found);
-    }
-    
+    // NOTA: la scansione completa dei 126 indirizzi I2C e' stata rimossa.
+    // Il touch e' un CST816S ad indirizzo fisso 0x15, gia' verificato sopra
+    // con Wire.endTransmission(). Scansionare tutti gli indirizzi aggiungeva
+    // un tempo di avvio lungo e variabile (ogni indirizzo senza risposta
+    // puo' andare in timeout, specialmente con un bus I2C elettricamente
+    // incerto), durante il quale lo schermo restava nero a backlight gia'
+    // acceso. Se serve diagnosticare un touch non rilevato, reintrodurla
+    // temporaneamente.
+
     // Test lettura touchscreen prima di registrare
     /*
     Serial.println("[Setup] Test lettura touchscreen...");
@@ -448,28 +456,38 @@ void setup() {
     #endif
     
     // Forza refresh immediato
+    log_checkpoint("prima lv_refr_now (Hello label)");
     lv_refr_now(NULL);
-    
+    log_checkpoint("dopo lv_refr_now (Hello label)");
+
     Serial.println("[Setup] Label creata e configurata");
     Serial.println("[Setup] Refresh forzato");
     Serial.println("\n[Setup] Setup completato!");
     Serial.println("========================================\n");
 
+#if USE_MICRONAV_LAYOUT
+    log_checkpoint("prima micronav_ui_init");
+    micronav_ui_init();
+    micronav_update_gps_status(true, 8);  // valori demo, visibili su entrambe le schermate
+    micronav_set_brightness_callback(set_backlight_brightness);
+    log_checkpoint("dopo micronav_ui_init");
+    Serial.println("[Setup] UI micronav (layout reale) inizializzata");
+#else
     ui_init();
 
     Serial.println("[Setup] SquareLine Studio UI inizializzata");
-    
+
     // Configura arc per essere interattivo
     // IMPORTANTE: L'arc deve essere configurato con LV_ARC_MODE_NORMAL per essere interattivo
     if (ui_Arc1 != NULL) {
         // Imposta modalità normale (interattiva)
         lv_arc_set_mode(ui_Arc1, LV_ARC_MODE_NORMAL);
-        
+
         // Assicurati che l'arc possa ricevere input touch
         lv_obj_clear_flag(ui_Arc1, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_add_flag(ui_Arc1, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_add_flag(ui_Arc1, LV_OBJ_FLAG_ADV_HITTEST);
-        
+
         // Porta l'arc in primo piano
         lv_obj_move_foreground(ui_Arc1);
 
@@ -483,19 +501,28 @@ void setup() {
     } else {
         Serial.println("[Setup] ERRORE: ui_Arc1 non trovato!");
     }
-    
+#endif
+
     Serial.println("[Setup] Refresh forzato");
     Serial.println("\n[Setup] Setup completato!");
     Serial.println("========================================\n");
     Serial.println("[Setup] Tocca lo schermo per vedere le coordinate nel monitor seriale");
 
+    log_checkpoint("prima lv_refr_now finale");
     lv_refr_now(NULL);
+    log_checkpoint("dopo lv_refr_now finale (setup completato)");
 }
 
 /**
  * Loop principale
  */
 void loop() {
+    static bool first_loop = true;
+    if (first_loop) {
+        log_checkpoint("primo loop() - prima di lv_timer_handler");
+        first_loop = false;
+    }
+
     // Chiama il timer handler di LVGL (necessario per aggiornare display)
     // Deve essere chiamato periodicamente, almeno ogni 5ms
     lv_timer_handler();
@@ -510,7 +537,36 @@ void loop() {
         Serial.println(millis());
         last_loop_debug = millis();
     }
-    
+
+#if USE_MICRONAV_LAYOUT
+    // Demo: alterna automaticamente idle -> alert autovelox -> alert
+    // semaforo ogni 4 secondi, per rivedere tutte le schermate senza
+    // dover toccare lo schermo
+    static unsigned long last_screen_switch = 0;
+    static uint8_t demo_state = 0;
+    // Mentre l'utente e' nella schermata impostazioni (regolando la
+    // luminosita'), il ciclo demo resta in pausa invece di riportarlo
+    // via dopo 4 secondi
+    if (micronav_is_settings_active()) {
+        last_screen_switch = millis();
+    } else if (millis() - last_screen_switch > 4000) {
+        demo_state = (demo_state + 1) % 3;
+        switch (demo_state) {
+            case 0:
+                micronav_update_gps_status(true, 8);
+                micronav_show_idle_screen();
+                break;
+            case 1:
+                micronav_show_speedcam_alert("VELOX", "attivo", 250, false, "50");
+                break;
+            case 2:
+                micronav_show_speedcam_alert("T RED", "attivo", 80, true, "");
+                break;
+        }
+        last_screen_switch = millis();
+    }
+#endif
+
     // Piccolo delay per evitare loop troppo veloce
     delay(5);
 }
