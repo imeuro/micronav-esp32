@@ -28,12 +28,11 @@ static lv_obj_t *gps_sat_label_alert = NULL;
 static lv_obj_t *alert_type_label = NULL;
 static lv_obj_t *alert_status_label = NULL;
 static lv_obj_t *alert_distance_label = NULL;
-#define DISTANCE_BOLD_COPIES 3
-static lv_obj_t *alert_distance_label_bold[DISTANCE_BOLD_COPIES] = {NULL};
 static lv_obj_t *alert_circle = NULL;
 static lv_obj_t *alert_circle_text = NULL;
-#define CIRCLE_TEXT_BOLD_COPIES 3
-static lv_obj_t *alert_circle_text_bold[CIRCLE_TEXT_BOLD_COPIES] = {NULL};
+
+LV_FONT_DECLARE(geist_black_26);
+LV_FONT_DECLARE(geist_black_30);
 
 // Colori ripresi da src/config.h (conversione da RGB565 a 24 bit)
 #define COLOR_MICRONAV_RED  lv_color_make(197, 12, 58)
@@ -55,31 +54,6 @@ static lv_obj_t *create_label(lv_obj_t *parent, const char *text, lv_color_t col
     lv_obj_set_style_text_color(label, color, LV_PART_MAIN);
     lv_obj_set_style_bg_opa(label, LV_OPA_TRANSP, LV_PART_MAIN);
     return label;
-}
-
-// LVGL non ha un font "bold" nativo per i font built-in (Montserrat
-// incluso) - servirebbe un font convertito apposta in stile bold. Come
-// mockup rapido, simuliamo un peso "extra bold" disegnando più copie dello
-// stesso testo sovrapposte, spostate di 1px in orizzontale/verticale/
-// diagonale (il testo base resta a offset 0,0): da sostituire con un vero
-// font bold (es. Geist Black convertito per LVGL) quando si passerà dal
-// mockup all'implementazione reale.
-static const lv_point_t BOLD_OFFSETS[3] = { {1, 0}, {0, 1}, {1, 1} };
-
-static lv_obj_t *create_bold_copy(lv_obj_t *parent, const char *text, lv_color_t color,
-                                   const lv_font_t *font, lv_align_t align,
-                                   lv_coord_t base_x, lv_coord_t base_y, int offset_idx) {
-    lv_obj_t *copy = create_label(parent, text, color);
-    if (font) lv_obj_set_style_text_font(copy, font, LV_PART_MAIN);
-    lv_obj_align(copy, align, base_x + BOLD_OFFSETS[offset_idx].x, base_y + BOLD_OFFSETS[offset_idx].y);
-    return copy;
-}
-
-static void set_bold_label_text(lv_obj_t *base, lv_obj_t **bold_copies, int n_copies, const char *text) {
-    lv_label_set_text(base, text);
-    for (int i = 0; i < n_copies; i++) {
-        lv_label_set_text(bold_copies[i], text);
-    }
 }
 
 // Apre la schermata impostazioni (tap sul pallino GPS nella schermata idle)
@@ -154,10 +128,10 @@ static void build_settings_screen(void) {
     scr_settings = create_black_screen();
 
     lv_obj_t *title = create_label(scr_settings, "Luminosita'", lv_color_white());
-    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 30);
+    lv_obj_align(title, LV_ALIGN_CENTER, 0, 28);  // sotto il valore percentuale
 
     settings_arc = lv_arc_create(scr_settings);
-    lv_obj_set_size(settings_arc, 160, 160);
+    lv_obj_set_size(settings_arc, 215, 215);
     lv_obj_center(settings_arc);
     lv_arc_set_bg_angles(settings_arc, 135, 45);  // arco a "misuratore", apertura in basso
     lv_arc_set_rotation(settings_arc, 0);
@@ -192,13 +166,8 @@ static void build_alert_screen(void) {
     lv_obj_align(alert_status_label, LV_ALIGN_TOP_LEFT, 20, 108);
 
     alert_distance_label = create_label(scr_alert, "250m", lv_color_white());
-    lv_obj_set_style_text_font(alert_distance_label, &lv_font_montserrat_20, LV_PART_MAIN);
+    lv_obj_set_style_text_font(alert_distance_label, &geist_black_30, LV_PART_MAIN);
     lv_obj_align(alert_distance_label, LV_ALIGN_TOP_LEFT, 20, 126);
-    for (int i = 0; i < DISTANCE_BOLD_COPIES; i++) {
-        alert_distance_label_bold[i] = create_bold_copy(scr_alert, "250m", lv_color_white(),
-                                                          &lv_font_montserrat_20,
-                                                          LV_ALIGN_TOP_LEFT, 20, 126, i);
-    }
 
     // Cerchio indicatore: diametro 66 (radius 33, come indicator_size/2 nel
     // firmware), centrato a (187, 120) - stessa posizione di indicator_x/y
@@ -214,13 +183,9 @@ static void build_alert_screen(void) {
     lv_obj_clear_flag(alert_circle, LV_OBJ_FLAG_SCROLLABLE);
 
     alert_circle_text = create_label(alert_circle, "50", lv_color_black());
-    lv_obj_set_style_text_font(alert_circle_text, &lv_font_montserrat_20, LV_PART_MAIN);
+    lv_obj_set_style_text_font(alert_circle_text, &geist_black_26, LV_PART_MAIN);
+    lv_obj_set_style_text_letter_space(alert_circle_text, -1, LV_PART_MAIN);
     lv_obj_align(alert_circle_text, LV_ALIGN_CENTER, 0, 0);
-    for (int i = 0; i < CIRCLE_TEXT_BOLD_COPIES; i++) {
-        alert_circle_text_bold[i] = create_bold_copy(alert_circle, "50", lv_color_black(),
-                                                       &lv_font_montserrat_20,
-                                                       LV_ALIGN_CENTER, 0, 0, i);
-    }
 
     // Indicatore + info GPS, persistenti anche durante l'alert
     build_gps_widgets(scr_alert, &gps_indicator_circle_alert, &gps_status_label_alert, &gps_sat_label_alert);
@@ -268,10 +233,9 @@ void micronav_show_speedcam_alert(const char *type_text, const char *status_text
 
     char dist_buf[16];
     snprintf(dist_buf, sizeof(dist_buf), "%dm", distance_m);
-    set_bold_label_text(alert_distance_label, alert_distance_label_bold, DISTANCE_BOLD_COPIES, dist_buf);
+    lv_label_set_text(alert_distance_label, dist_buf);
 
-    set_bold_label_text(alert_circle_text, alert_circle_text_bold, CIRCLE_TEXT_BOLD_COPIES,
-                         is_semaforo ? "TL" : vmax_text);
+    lv_label_set_text(alert_circle_text, is_semaforo ? "TL" : vmax_text);
 
     lv_scr_load(scr_alert);
 }
