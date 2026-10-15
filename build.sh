@@ -62,13 +62,13 @@ if [ ! -f "$PARTITIONS_FILE" ]; then
     # Usa default se partitions.csv non esiste
     FQBN="esp32:esp32:esp32c3:UploadSpeed=921600,CPUFreq=160,FlashFreq=80,FlashMode=qio,FlashSize=4M,PartitionScheme=default,DebugLevel=info,CDCOnBoot=cdc"
     BUILD_PROPERTIES=(
-        --build-property "compiler.cpp.extra_flags=-DCORE_DEBUG_LEVEL=3"
+        --build-property "compiler.cpp.extra_flags=-DCORE_DEBUG_LEVEL=3 -DLV_COLOR_DEPTH=16 -DLV_USE_LOG=0 -DLV_USE_FILESYSTEM=0 -DLV_USE_FS_FATFS=0 -DLV_USE_FS_POSIX=0 -DLV_USE_FS_WIN32=0 -DLV_USE_FS_STDIO=0"
     )
 else
     BUILD_PROPERTIES=(
         --build-property "build.partitions=partitions"
         --build-property "build.partitions_file=partitions.csv"
-        --build-property "compiler.cpp.extra_flags=-DCORE_DEBUG_LEVEL=3"
+        --build-property "compiler.cpp.extra_flags=-DCORE_DEBUG_LEVEL=3 -DLV_COLOR_DEPTH=16 -DLV_USE_LOG=0 -DLV_USE_FILESYSTEM=0 -DLV_USE_FS_FATFS=0 -DLV_USE_FS_POSIX=0 -DLV_USE_FS_WIN32=0 -DLV_USE_FS_STDIO=0"
     )
 fi
 

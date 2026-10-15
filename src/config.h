@@ -41,14 +41,6 @@
 #define BOOT_LOGO_FADE_DURATION 500  // Durata fade-in in millisecondi
 #define BOOT_LOGO_FADE_STEPS 3      // Numero di step per fade (più step = più fluido, ma più lento)
 
-// Font Configuration
-// Per usare font personalizzati (es. Geist e Geist Mono), decommenta e specifica i nomi
-// I font devono essere generati con convert_font.py e inclusi in display_controller.cpp
-// Esempio: se i font si chiamano "geist_font.h" e "geist_mono_font.h", usa:
-#define CUSTOM_FONT_ENABLED
-#define CUSTOM_FONT_NAME geist        // Font normale (senza _font suffix, senza virgolette)
-#define CUSTOM_FONT_MONO_NAME geist_mono  // Font monospaced per numeri/codici (opzionale)
-
 // Display Pin Configuration
 // Configurazione basata su Factory_samples.ino del produttore ESP32-2424S012
 // File: 1.28inch_ESP32-2424S012/1-Demo/Demo_Arduino/Factory_samples.ino
@@ -65,6 +57,16 @@
 // NOTA: MOSI/SCK non sono piu' passati al costruttore del display (che userebbe
 // SPI software/bit-bang). Coincidono con i pin SPI hardware di default
 // dell'ESP32-C3 e restano qui solo a scopo di documentazione.
+// Touchscreen CST816S (I2C)
+#define TOUCH_SDA_PIN 4
+#define TOUCH_SCL_PIN 5
+#define TOUCH_I2C_ADDR 0x15
+
+// Backlight PWM
+#define BACKLIGHT_PWM_FREQ 5000
+#define BACKLIGHT_PWM_RESOLUTION 8
+#define BACKLIGHT_DEFAULT_PERCENT 80
+
 #define DISPLAY_MOSI_PIN 7 // cfg.pin_mosi = 7 (= SPI hardware default)
 #define DISPLAY_SCK_PIN 6  // cfg.pin_sclk = 6 (= SPI hardware default)
 
@@ -101,7 +103,7 @@
 #define PRE_FILTER_MAX_LNG 14.0   // Longitudine massima
 
 // Timing
-#define MAIN_LOOP_DELAY 100  // Delay loop principale in millisecondi
+#define MAIN_LOOP_DELAY 5  // Delay loop principale in millisecondi (basso: serve a LVGL/touch)
 #define GPS_UPDATE_INTERVAL 1000  // Intervallo aggiornamento GPS in millisecondi
 
 #endif // CONFIG_H

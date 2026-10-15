@@ -281,6 +281,7 @@ static void log_checkpoint(const char *label) {
 
 void setup() {
     // Inizializza Serial per debug
+    Serial.setTxBufferSize(4096);  // buffer ampio: con timeout 0 i print oltre il buffer vengono scartati
     Serial.begin(115200);
     Serial.setTxTimeoutMs(0);  // senza monitor aperto la CDC USB bloccherebbe ogni print (avvio lento)
     delay(2000);  // Attendi che Serial sia pronto

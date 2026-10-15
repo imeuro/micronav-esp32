@@ -2,8 +2,7 @@
 #define DISPLAY_CONTROLLER_H
 
 #include <Arduino.h>
-#include <SPI.h>
-#include <LittleFS.h>
+#include <lvgl.h>
 #include "config.h"
 #include "lgfx_panel_config.h"
 
@@ -11,123 +10,69 @@
 struct Speedcam;
 
 /**
- * Controller display GC9A01 240x240
- * Gestisce visualizzazione boot logo, schermata idle e alert speedcam
+ * Controller display GC9A01 240x240 + touch CST816S, basato su LVGL.
+ * Schermate (idle, alert, impostazioni) definite in ui_micronav.c;
+ * LVGL fa il flush tramite LovyanGFX (classe LGFX condivisa).
  */
 class DisplayController {
 public:
     DisplayController();
     ~DisplayController();
-    
-    /**
-     * Inizializza il display
-     * @return true se inizializzazione riuscita
-     */
+
+    /** Inizializza display, LVGL, touch e UI. @return true se riuscita */
     bool begin();
-    
-    /**
-     * Mostra boot logo
-     * @param display_time_ms Tempo visualizzazione in millisecondi
-     */
+
+    /** Mostra boot logo (schermata idle) con fade-in del backlight */
     void showBootLogo(unsigned long display_time_ms = BOOT_LOGO_DISPLAY_TIME);
-    
-    /**
-     * Mostra schermata idle (GPS status, ecc.)
-     */
+
+    /** Mostra schermata idle */
     void showIdleScreen();
-    
-    /**
-     * Mostra alert speedcam
-     * @param speedcam Dati speedcam rilevata
-     * @param distance Distanza dalla speedcam in metri
-     */
+
+    /** Mostra alert speedcam (ignorato visivamente se le impostazioni sono aperte) */
     void showSpeedcamAlert(const struct Speedcam& speedcam, float distance);
-    
-    /**
-     * Nasconde alert speedcam e torna a schermata idle
-     */
+
+    /** Nasconde alert e torna alla schermata idle */
     void hideSpeedcamAlert();
-    
-    /**
-     * Aggiorna display (da chiamare periodicamente)
-     */
+
+    /** Da chiamare a ogni loop(): tick LVGL, touch, timeout alert */
     void update();
-    
-    /**
-     * Aggiorna indicatore GPS
-     */
+
+    /** Aggiorna indicatore e testo GPS (su entrambe le schermate) */
     void updateGPSIndicator(bool has_fix, uint8_t satellites);
+
+    /** Imposta luminosita' backlight (10-100%) */
+    void setBrightness(int percent);
 
 private:
     LGFX* display;
     bool is_initialized;
-    
-    // Stato corrente
+    bool touch_present;
+
+    // Stato alert
     bool showing_alert;
     unsigned long alert_start_time;
     unsigned long alert_display_time;
-    
+
     // GPS status
     bool gps_has_fix;
     uint8_t gps_satellites;
-    
-    /**
-     * Disegna contenuto alert speedcam
-     */
-    void drawSpeedcamAlertContent(const Speedcam& speedcam, float distance);
-    
-    /**
-     * Disegna informazioni GPS (testo, senza re-render completo)
-     */
-    void drawGPSInfo();
-    
-    /**
-     * Disegna indicatore GPS
-     */
-    void drawGPSIndicator(bool has_fix, uint8_t satellites);
-    
-    /**
-     * Disegna rounded rectangle (nativo, via LovyanGFX drawRoundRect)
-     */
-    void drawRoundedRect(int16_t x, int16_t y, int16_t w, int16_t h, int16_t radius, uint16_t color);
-    
-    /**
-     * Disegna rounded rectangle filled
-     */
-    void drawRoundedRectFilled(int16_t x, int16_t y, int16_t w, int16_t h, int16_t radius, uint16_t color);
-    
-    /**
-     * Disegna cerchio con bordo
-     */
-    void drawCircleWithBorder(int16_t x, int16_t y, int16_t radius, uint16_t fill_color, uint16_t border_color, int16_t border_width);
-    
-    /**
-     * Ottiene colore da RGB
-     */
-    uint16_t color565(uint8_t r, uint8_t g, uint8_t b);
-    
-    /**
-     * Mescola colore RGB565 con nero per effetto fade
-     * @param color Colore originale (RGB565)
-     * @param fade_factor Fattore fade (0.0 = nero, 1.0 = colore pieno)
-     * @return Colore attenuato
-     */
-    uint16_t fadeColor565(uint16_t color, float fade_factor);
-    
-    /**
-     * Imposta font normale (se disponibile)
-     */
-    void setNormalFont();
-    
-    /**
-     * Imposta font monospaced (se disponibile)
-     */
-    void setMonoFont();
-    
-    /**
-     * Imposta font small (se disponibile)
-     */
-    void setSmallFont();
+    bool gps_dirty;
+
+    int brightness_percent;
+    unsigned long last_tick_ms;
+
+    // LVGL
+    lv_disp_draw_buf_t draw_buf;
+    lv_color_t* buf1;
+    lv_color_t* buf2;
+    lv_disp_drv_t disp_drv;
+    lv_indev_drv_t indev_drv;
+
+    static void flushCallback(lv_disp_drv_t* drv, const lv_area_t* area, lv_color_t* color_p);
+    static void touchCallback(lv_indev_drv_t* drv, lv_indev_data_t* data);
+    static void brightnessCallback(int percent);
+
+    void serviceLvgl();
 };
 
 #endif // DISPLAY_CONTROLLER_H

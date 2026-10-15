@@ -30,7 +30,9 @@ DisplayController* display_controller = nullptr;
 void setup() {
     // Inizializza Serial per debug PRIMA di tutto
     // IMPORTANTE: USB CDC On Boot deve essere "Enabled" nelle impostazioni della board
+    Serial.setTxBufferSize(4096);  // buffer ampio: con timeout 0 i print oltre il buffer vengono scartati
     Serial.begin(115200);
+    Serial.setTxTimeoutMs(0);  // senza monitor la CDC USB bloccherebbe ogni print (avvio lento)
     
     // Attendi che Serial sia pronto (importante per ESP32-C3)
     delay(2000);
