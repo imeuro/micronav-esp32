@@ -46,6 +46,9 @@ echo -e "${YELLOW}Installazione librerie...${NC}"
 echo "  - LovyanGFX..."
 arduino-cli lib install "LovyanGFX@1.2.33"
 
+echo "  - LVGL..."
+arduino-cli lib install "lvgl@8.3.3"
+
 echo "  - ArduinoJson..."
 arduino-cli lib install "ArduinoJson"
 
