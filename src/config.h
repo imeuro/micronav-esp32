@@ -35,6 +35,9 @@
 #define SPEEDCAM_JSON_PATH "/speedcams.json"
 #define SPEEDCAM_ENABLED true
 
+// Log dettagliato per la prova su strada (taratura cono, soglie e SPEEDCAM_DIR_OFFSET_DEG): mettere a 0 dopo
+#define SPEEDCAM_ROAD_TEST_LOG 1
+
 // Detection direzionale (vedi openspec/changes/refine-speedcam-detection/design.md)
 #define SPEEDCAM_MIN_SPEED_KMH 10          // Sotto questa velocita' il course GPS non e' affidabile
 #define SPEEDCAM_HEADING_HOLD_MS 10000     // Quanto si mantiene l'ultimo heading valido sotto soglia

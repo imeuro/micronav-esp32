@@ -24,3 +24,4 @@
 - [x] 5.1 Test host sulla geometria e sulla state machine
 - [x] 5.2 Scenari `fake_gps.json`: frontale, passato, opposto, parallelo, dietro+davanti
 - [ ] 5.3 Prova su strada e taratura cono / soglie, verifica convenzione `richtung` (offset 0 o 180)
+- [x] 5.4 Log `[RoadTest]` (`SPEEDCAM_ROAD_TEST_LOG`): per i 3 POI piu' vicini distanza, bearing, angolo cono, scarto direzione con offset 0 e 180, verdetto; database caricato su LittleFS con `richtung`

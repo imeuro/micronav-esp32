@@ -175,6 +175,71 @@ void SpeedcamController::refreshDatabaseIfDue(const GPSPosition& position) {
     loadDatabaseAround(position.latitude, position.longitude, true);
 }
 
+#if SPEEDCAM_ROAD_TEST_LOG
+// Log per la prova su strada: per i POI piu' vicini nel raggio mostra distanza,
+// bearing, angolo rispetto alla marcia e scarto di direzione (con offset 0 e
+// 180), cosi' la taratura di cono/soglie e di SPEEDCAM_DIR_OFFSET_DEG si fa
+// leggendo il log invece che a occhio.
+static void logRoadTest(const Speedcam* cams, int count, const GPSPosition& pos,
+                        float radius, const TrackerResult& result) {
+    static unsigned long last_heartbeat = 0;
+    const int MAX_LOGGED = 3;
+    int idx[MAX_LOGGED];
+    float dist[MAX_LOGGED];
+    int n = 0;
+
+    for (int i = 0; i < count; i++) {
+        float d = (float)geo_distance_m(pos.latitude, pos.longitude, cams[i].lat, cams[i].lng);
+        if (d > radius) continue;
+        int slot = n < MAX_LOGGED ? n : MAX_LOGGED - 1;
+        if (n >= MAX_LOGGED && d >= dist[slot]) continue;
+        while (slot > 0 && dist[slot - 1] > d) {
+            idx[slot] = idx[slot - 1];
+            dist[slot] = dist[slot - 1];
+            slot--;
+        }
+        idx[slot] = i;
+        dist[slot] = d;
+        if (n < MAX_LOGGED) n++;
+    }
+
+    if (n == 0 && millis() - last_heartbeat < 10000) return;
+    last_heartbeat = millis();
+
+    Serial.printf("[RoadTest] t=%lu pos=%.6f,%.6f v=%.0fkm/h hdg=", millis(), pos.latitude, pos.longitude, pos.speed);
+    if (pos.course_valid) Serial.printf("%d", (int)pos.course); else Serial.print("n/d");
+    Serial.printf(" sat=%d r=%dm poi_nel_raggio=%d\n", pos.satellites, (int)radius, n);
+
+    for (int k = 0; k < n; k++) {
+        const Speedcam& sc = cams[idx[k]];
+        double bearing = geo_bearing_deg(pos.latitude, pos.longitude, sc.lat, sc.lng);
+        Serial.printf("[RoadTest]   id=%lu tipo=%s vmax=%s d=%dm brg=%d", (unsigned long)sc.id, sc.type, sc.vmax, (int)dist[k], (int)bearing);
+
+        const char* verdict = "ok-non-scelto";
+        if (pos.course_valid) {
+            double cone = geo_angle_diff_deg(pos.course, bearing);
+            Serial.printf(" cono=%d", (int)cone);
+            if (sc.dir != SPEEDCAM_DIR_NONE) {
+                double d0 = geo_angle_diff_deg(pos.course, (double)sc.dir);
+                double d180 = geo_angle_diff_deg(pos.course, fmod((double)sc.dir + 180.0, 360.0));
+                Serial.printf(" dir=%d dir_off0=%d dir_off180=%d", (int)sc.dir, (int)d0, (int)d180);
+                double used = geo_angle_diff_deg(pos.course, fmod((double)sc.dir + SPEEDCAM_DIR_OFFSET_DEG, 360.0));
+                if (used > SPEEDCAM_DIR_TOLERANCE_DEG) verdict = "scartato-direzione";
+            } else {
+                Serial.print(" dir=n/d");
+            }
+            if (verdict[0] == 'o' && dist[k] > SPEEDCAM_NEAR_FIELD_M && cone > SPEEDCAM_CONE_HALF_ANGLE_DEG) {
+                verdict = "scartato-cono";
+            }
+        } else {
+            verdict = "scartato-heading-ignoto";
+        }
+        if (result.index >= 0 && cams[result.index].id == sc.id) verdict = "ALERT";
+        Serial.printf(" -> %s\n", verdict);
+    }
+}
+#endif
+
 const Speedcam* SpeedcamController::checkSpeedcams(const GPSPosition* position) {
     // Throttling: esegui check solo ogni X millisecondi
     unsigned long current_time = millis();
@@ -265,6 +330,10 @@ const Speedcam* SpeedcamController::checkSpeedcams(const GPSPosition* position) 
                                           gps_position.latitude, gps_position.longitude,
                                           gps_position.course_valid, gps_position.course,
                                           detection_radius);
+
+    #if SPEEDCAM_ROAD_TEST_LOG
+    logRoadTest(speedcams, speedcam_count, gps_position, detection_radius, result);
+    #endif
 
     if (result.index >= 0) {
         last_detected_distance = result.distance;
