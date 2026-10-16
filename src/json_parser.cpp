@@ -1,6 +1,32 @@
 #include "json_parser.h"
 
-JSONParser::JSONParser() {
+JSONParser::JSONParser() :
+    bbox_enabled(false),
+    bbox_min_lat(0), bbox_max_lat(0), bbox_min_lng(0), bbox_max_lng(0),
+    discarded_bbox(0),
+    discarded_cap(0) {
+}
+
+void JSONParser::setBoundingBox(float min_lat, float max_lat, float min_lng, float max_lng) {
+    bbox_enabled = true;
+    bbox_min_lat = min_lat;
+    bbox_max_lat = max_lat;
+    bbox_min_lng = min_lng;
+    bbox_max_lng = max_lng;
+}
+
+void JSONParser::acceptSpeedcam(const Speedcam& sc, Speedcam* speedcams, int& count, int max_count) {
+    if (bbox_enabled &&
+        (sc.lat < bbox_min_lat || sc.lat > bbox_max_lat ||
+         sc.lng < bbox_min_lng || sc.lng > bbox_max_lng)) {
+        discarded_bbox++;
+        return;
+    }
+    if (count >= max_count) {
+        discarded_cap++;
+        return;
+    }
+    speedcams[count++] = sc;
 }
 
 JSONParser::~JSONParser() {
@@ -40,6 +66,8 @@ bool JSONParser::isLittleFSMounted() {
 }
 
 int JSONParser::loadFromFile(const char* filename, Speedcam* speedcams, int max_count) {
+    discarded_bbox = 0;
+    discarded_cap = 0;
     // Specifica esplicitamente il nome della partizione "littlefs"
     // Primo tentativo: monta senza formattare
     if (!LittleFS.begin(false, "/littlefs", 5, "littlefs")) {
@@ -175,10 +203,9 @@ int JSONParser::loadFromFile(const char* filename, Speedcam* speedcams, int max_
         }
         
         for (JsonObject obj : result) {
-            if (loaded_count >= max_count) break;
-            
-            if (parseSpeedcam(obj, speedcams[loaded_count])) {
-                loaded_count++;
+            Speedcam sc;
+            if (parseSpeedcam(obj, sc)) {
+                acceptSpeedcam(sc, speedcams, loaded_count, max_count);
             }
         }
     }
@@ -197,6 +224,8 @@ int JSONParser::loadFromFile(const char* filename, Speedcam* speedcams, int max_
 }
 
 int JSONParser::loadFromString(const char* json_string, Speedcam* speedcams, int max_count) {
+    discarded_bbox = 0;
+    discarded_cap = 0;
     // Usa DynamicJsonDocument per parsing
     // Dimensione basata su dimensione stringa (max 32KB per sicurezza)
     const size_t doc_size = min((size_t)32768, (size_t)(strlen(json_string) * 1.2));
@@ -227,18 +256,9 @@ int JSONParser::loadFromString(const char* json_string, Speedcam* speedcams, int
     int loaded_count = 0;
     
     for (JsonObject obj : result) {
-        if (loaded_count >= max_count) {
-            #ifdef DEBUG_ENABLED
-            if (DEBUG_ENABLED) {
-                Serial.print("[JSON] Raggiunto limite massimo speedcam: ");
-                Serial.println(max_count);
-            }
-            #endif
-            break;
-        }
-        
-        if (parseSpeedcam(obj, speedcams[loaded_count])) {
-            loaded_count++;
+        Speedcam sc;
+        if (parseSpeedcam(obj, sc)) {
+            acceptSpeedcam(sc, speedcams, loaded_count, max_count);
         }
     }
     
@@ -274,6 +294,15 @@ bool JSONParser::parseSpeedcam(JsonObject obj, Speedcam& speedcam) {
         const char* status_str = obj["status"].as<const char*>();
         if (status_str && strlen(status_str) > 0) {
             speedcam.status = status_str[0];
+        }
+    }
+    
+    // Direzione controllata (numero o stringa, 0-360)
+    speedcam.dir = SPEEDCAM_DIR_NONE;
+    if (obj.containsKey("richtung")) {
+        int dir = obj["richtung"].as<int>();
+        if (dir >= 0 && dir <= 360) {
+            speedcam.dir = (uint16_t)(dir % 360);
         }
     }
     
@@ -358,7 +387,8 @@ int JSONParser::loadFromFileIncremental(File& file, Speedcam* speedcams, int max
     #endif
     
     // Leggi file carattere per carattere
-    while (file.available() && loaded_count < max_count) {
+    // Si legge fino in fondo anche a limite raggiunto, per contare i POI scartati
+    while (file.available()) {
         char c = file.read();
         
         // Cerca "result" prima di iniziare a parsare
@@ -459,10 +489,11 @@ int JSONParser::loadFromFileIncremental(File& file, Speedcam* speedcams, int max
                     if (parseSpeedcam(doc.as<JsonObject>(), sc)) {
                         // Verifica coordinate valide
                         if (sc.lat != 0.0 || sc.lng != 0.0) {
-                            speedcams[loaded_count++] = sc;
+                            const int before = loaded_count;
+                            acceptSpeedcam(sc, speedcams, loaded_count, max_count);
                             
                             #ifdef DEBUG_ENABLED
-                            if (DEBUG_ENABLED && loaded_count % 100 == 0) {
+                            if (DEBUG_ENABLED && loaded_count != before && loaded_count % 100 == 0) {
                                 Serial.print("[JSON] Caricate ");
                                 Serial.print(loaded_count);
                                 Serial.println(" speedcam...");

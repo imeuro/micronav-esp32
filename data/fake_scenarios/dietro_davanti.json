@@ -1,0 +1,78 @@
+{
+ "description": "POI 9711 alle spalle e POI 9712 davanti, stessa direzione: alert solo per 9712",
+ "loop": false,
+ "route": [
+  {
+   "lat": 43.785226,
+   "lng": 11.505988,
+   "speed": 60,
+   "course": 62
+  },
+  {
+   "lat": 43.785437,
+   "lng": 11.506537,
+   "speed": 60,
+   "course": 62
+  },
+  {
+   "lat": 43.785648,
+   "lng": 11.507087,
+   "speed": 60,
+   "course": 62
+  },
+  {
+   "lat": 43.785858,
+   "lng": 11.507636,
+   "speed": 60,
+   "course": 62
+  },
+  {
+   "lat": 43.786069,
+   "lng": 11.508186,
+   "speed": 60,
+   "course": 62
+  },
+  {
+   "lat": 43.786279,
+   "lng": 11.508736,
+   "speed": 60,
+   "course": 62
+  },
+  {
+   "lat": 43.78649,
+   "lng": 11.509285,
+   "speed": 60,
+   "course": 62
+  },
+  {
+   "lat": 43.786701,
+   "lng": 11.509835,
+   "speed": 60,
+   "course": 62
+  },
+  {
+   "lat": 43.786911,
+   "lng": 11.510384,
+   "speed": 60,
+   "course": 62
+  },
+  {
+   "lat": 43.787122,
+   "lng": 11.510934,
+   "speed": 60,
+   "course": 62
+  },
+  {
+   "lat": 43.787332,
+   "lng": 11.511483,
+   "speed": 60,
+   "course": 62
+  },
+  {
+   "lat": 43.787543,
+   "lng": 11.512033,
+   "speed": 60,
+   "course": 62
+  }
+ ]
+}

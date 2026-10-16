@@ -7,6 +7,7 @@
 #include <LittleFS.h>
 #include <ArduinoJson.h>
 #include "config.h"
+#include "heading_tracker.h"
 
 /**
  * Struttura dati posizione GPS
@@ -16,7 +17,8 @@ struct GPSPosition {
     double longitude;
     double altitude;
     float speed;          // Velocità in km/h
-    float course;         // Direzione in gradi
+    float course;         // Direzione di marcia in gradi (significativo solo se course_valid)
+    bool course_valid;    // true se heading affidabile (velocita' sopra soglia, o hold/bearing di ripiego)
     uint8_t satellites;
     float hdop;           // Horizontal Dilution of Precision
     bool is_valid;
@@ -28,6 +30,7 @@ struct GPSPosition {
         altitude(0.0),
         speed(0.0),
         course(0.0),
+        course_valid(false),
         satellites(0),
         hdop(0.0),
         is_valid(false),
@@ -123,6 +126,7 @@ private:
     HardwareSerial* gps_serial;
     TinyGPSPlus gps_parser;
     GPSPosition current_position;
+    HeadingTracker heading_tracker;
     GPSStatus status;
     
     // Modalità fake
@@ -133,6 +137,7 @@ private:
         double altitude;
         float speed;
         float course;
+        bool course_valid;
         uint8_t satellites;
         float hdop;
     };

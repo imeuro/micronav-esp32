@@ -10,9 +10,9 @@ SpeedcamController::SpeedcamController() :
     enabled(SPEEDCAM_ENABLED),
     detection_radius(SPEEDCAM_DETECTION_RADIUS),
     check_interval(SPEEDCAM_CHECK_INTERVAL),
-    last_detected_speedcam_id(0),
     last_detected_distance(0.0),
-    previous_detected_distance(0.0),
+    db_from_fix(false),
+    last_db_load_ms(0),
     last_check_time(0) {
     
     stats.detections_count = 0;
@@ -89,6 +89,14 @@ bool SpeedcamController::loadDatabase(const char* filename, bool pre_filter,
     }
     
     JSONParser parser;
+
+    // Il bounding box e' applicato durante il parse, prima del limite max_speedcam_count:
+    // il database non e' ordinato geograficamente e il cap tagliava la fascia sbagliata
+    if (pre_filter && SPEEDCAM_PRE_FILTER_ENABLED &&
+        min_lat != 0 && max_lat != 0 && min_lng != 0 && max_lng != 0) {
+        parser.setBoundingBox(min_lat, max_lat, min_lng, max_lng);
+    }
+
     int loaded = parser.loadFromFile(filename, speedcams, max_speedcam_count);
     
     if (loaded < 0) {
@@ -101,24 +109,23 @@ bool SpeedcamController::loadDatabase(const char* filename, bool pre_filter,
     }
     
     speedcam_count = loaded;
-    
-    // Pre-filtraggio geografico se abilitato
-    if (pre_filter && SPEEDCAM_PRE_FILTER_ENABLED && 
-        min_lat != 0 && max_lat != 0 && min_lng != 0 && max_lng != 0) {
-        int filtered = parser.filterByBoundingBox(speedcams, speedcam_count,
-                                                  min_lat, max_lat, min_lng, max_lng);
-        
-        #ifdef DEBUG_ENABLED
-        if (DEBUG_ENABLED) {
-            Serial.print("[Speedcam] Pre-filtraggio geografico: ");
-            Serial.print(speedcam_count);
-            Serial.print(" -> ");
-            Serial.print(filtered);
-            Serial.println(" speedcam");
-        }
-        #endif
-        
-        speedcam_count = filtered;
+    // Il tracker lavora per id: sopravvive alla ricarica se il POI e' ancora nel box
+
+    #ifdef DEBUG_ENABLED
+    if (DEBUG_ENABLED) {
+        Serial.print("[Speedcam] Scartate per bounding box: ");
+        Serial.print(parser.getDiscardedByBBox());
+        Serial.print(", scartate per limite ");
+        Serial.print(max_speedcam_count);
+        Serial.print(": ");
+        Serial.println(parser.getDiscardedByCap());
+    }
+    #endif
+
+    if (parser.getDiscardedByCap() > 0) {
+        Serial.print("[Speedcam] ATTENZIONE: ");
+        Serial.print(parser.getDiscardedByCap());
+        Serial.println(" POI nell'area scartati per MAX_SPEEDCAM_COUNT");
     }
     
     #ifdef DEBUG_ENABLED
@@ -148,6 +155,24 @@ bool SpeedcamController::loadDatabase(const char* filename, bool pre_filter,
     #endif
     
     return true;
+}
+
+bool SpeedcamController::loadDatabaseAround(double lat, double lng, bool from_fix) {
+    const float span = PRE_FILTER_HALF_SPAN_DEG;
+    bool ok = loadDatabase(SPEEDCAM_JSON_PATH, true,
+                           (float)lat - span, (float)lat + span,
+                           (float)lng - span, (float)lng + span);
+    db_from_fix = from_fix;
+    last_db_load_ms = millis();  // anche in caso di errore: niente retry a raffica
+    return ok;
+}
+
+void SpeedcamController::refreshDatabaseIfDue(const GPSPosition& position) {
+    if (tracker.isTracking()) return;
+    if (db_from_fix && (millis() - last_db_load_ms) < SPEEDCAM_DB_REFRESH_MS) return;
+
+    Serial.println("[Speedcam] Ricarico il database attorno alla posizione corrente");
+    loadDatabaseAround(position.latitude, position.longitude, true);
 }
 
 const Speedcam* SpeedcamController::checkSpeedcams(const GPSPosition* position) {
@@ -212,177 +237,54 @@ const Speedcam* SpeedcamController::checkSpeedcams(const GPSPosition* position) 
     }
     #endif
     
-    // Rileva speedcam vicine
-    const Speedcam* detected = detectSpeedcam(gps_position, detection_radius);
-    
-    if (detected) {
-        notifySpeedcamDetected(*detected, last_detected_distance);
-    } else {
-        // Nessuna speedcam rilevata: se c'era un alert attivo, nascondilo
-        // Solo se la speedcam precedente non è più nel raggio
-        if (last_detected_speedcam_id != 0 && display_controller) {
-            // Verifica se la speedcam precedente è ancora nel raggio
-            bool still_in_range = false;
-            for (int i = 0; i < speedcam_count; i++) {
-                if (speedcams[i].id == last_detected_speedcam_id) {
-                    float distance = calculate_distance(
-                        gps_position.latitude,
-                        gps_position.longitude,
-                        speedcams[i].lat,
-                        speedcams[i].lng
-                    );
-                    if (distance <= detection_radius) {
-                        still_in_range = true;
-                    }
-                    break;
-                }
-            }
-            
-            // Se non è più nel raggio, nascondi alert e resetta tracking
-            if (!still_in_range) {
-                #ifdef DEBUG_ENABLED
-                if (DEBUG_ENABLED) {
-                    Serial.println("[Speedcam] Speedcam uscita dal raggio, nascondo alert");
-                }
-                #endif
-                display_controller->hideSpeedcamAlert();
-                last_detected_speedcam_id = 0;
-                last_detected_distance = 0.0;
-                previous_detected_distance = 0.0;
-            }
-        }
-    }
-    
-    return detected;
-}
-
-const Speedcam* SpeedcamController::detectSpeedcam(const GPSPosition& position, float radius) {
-    if (speedcam_count == 0) {
-        #ifdef DEBUG_ENABLED
-        if (DEBUG_ENABLED) {
-            Serial.println("[Speedcam] detectSpeedcam: Nessuna speedcam nel database!");
-        }
-        #endif
-        return nullptr;
-    }
-    
-    const Speedcam* closest_speedcam = nullptr;
-    float closest_distance = radius + 1.0;  // Inizia oltre il raggio
-    
     #ifdef DEBUG_ENABLED
     if (DEBUG_ENABLED) {
-        static unsigned long last_debug_time = 0;
-        if (millis() - last_debug_time > 5000) {  // Debug ogni 5 secondi
-            Serial.print("[Speedcam] Check posizione: ");
-            Serial.print(position.latitude, 6);
+        static unsigned long last_pos_debug = 0;
+        if (millis() - last_pos_debug > 5000) {
+            Serial.print("[Speedcam] Posizione: ");
+            Serial.print(gps_position.latitude, 6);
             Serial.print(", ");
-            Serial.print(position.longitude, 6);
-            Serial.print(" | Database: ");
-            Serial.print(speedcam_count);
-            Serial.print(" speedcam | Raggio: ");
-            Serial.print(radius);
+            Serial.print(gps_position.longitude, 6);
+            Serial.print(" | heading: ");
+            if (gps_position.course_valid) {
+                Serial.print((int)gps_position.course);
+            } else {
+                Serial.print("n/d");
+            }
+            Serial.print(" | raggio: ");
+            Serial.print((int)detection_radius);
             Serial.println("m");
-            last_debug_time = millis();
+            last_pos_debug = millis();
         }
     }
     #endif
-    
-    // Calcola distanza da tutte le speedcam e trova la più vicina
-    for (int i = 0; i < speedcam_count; i++) {
-        const Speedcam& sc = speedcams[i];
-        
-        // Verifica che le coordinate siano valide
-        if (!is_valid_float(sc.lat) || !is_valid_float(sc.lng)) {
-            continue;
-        }
-        
-        // Calcola distanza usando formula Haversine
-        float distance = calculate_distance(
-            position.latitude,
-            position.longitude,
-            sc.lat,
-            sc.lng
-        );
-        
+
+    refreshDatabaseIfDue(gps_position);
+
+    TrackerResult result = tracker.update(speedcams, speedcam_count,
+                                          gps_position.latitude, gps_position.longitude,
+                                          gps_position.course_valid, gps_position.course,
+                                          detection_radius);
+
+    if (result.index >= 0) {
+        last_detected_distance = result.distance;
+        notifySpeedcamDetected(speedcams[result.index], result.distance);
+        return &speedcams[result.index];
+    }
+
+    if (result.hide) {
         #ifdef DEBUG_ENABLED
         if (DEBUG_ENABLED) {
-            // Log solo le speedcam vicine (entro 2km per debug)
-            if (distance < 2000.0) {
-                static unsigned long last_near_debug = 0;
-                if (millis() - last_near_debug > 2000) {  // Ogni 2 secondi
-                    Serial.print("[Speedcam] Speedcam vicina - ID: ");
-                    Serial.print(sc.id);
-                    Serial.print(", Distanza: ");
-                    Serial.print((int)distance);
-                    Serial.print("m, Tipo: ");
-                    Serial.println(sc.type);
-                    last_near_debug = millis();
-                }
-            }
+            Serial.println("[Speedcam] POI superato o fuori cono, nascondo alert");
         }
         #endif
-        
-        // Verifica se è entro raggio e più vicina
-        if (distance <= radius && distance < closest_distance) {
-            closest_distance = distance;
-            closest_speedcam = &sc;
+        last_detected_distance = 0.0;
+        if (display_controller) {
+            display_controller->hideSpeedcamAlert();
         }
     }
-    
-    // Verifica se ci stiamo avvicinando o allontanando
-    if (closest_speedcam) {
-        // Se è la stessa speedcam, verifica se ci stiamo avvicinando o allontanando
-        if (closest_speedcam->id == last_detected_speedcam_id && previous_detected_distance > 0.0) {
-            // Calcola differenza distanza (positiva = allontanamento, negativa = avvicinamento)
-            float distance_change = closest_distance - previous_detected_distance;
-            
-            // Se ci stiamo allontanando (distanza aumenta), nascondi alert e non notificare
-            if (distance_change > 10.0) {  // Soglia 10m per evitare oscillazioni
-                #ifdef DEBUG_ENABLED
-                if (DEBUG_ENABLED) {
-                    Serial.print("[Speedcam] Allontanamento rilevato - Distanza: ");
-                    Serial.print((int)closest_distance);
-                    Serial.print("m (precedente: ");
-                    Serial.print((int)previous_detected_distance);
-                    Serial.println("m), nascondo alert");
-                }
-                #endif
-                
-                // Nascondi alert se presente
-                if (display_controller) {
-                    display_controller->hideSpeedcamAlert();
-                }
-                
-                // Se ci siamo allontanati oltre il raggio, resetta tracking
-                if (closest_distance > radius) {
-                    last_detected_speedcam_id = 0;
-                    last_detected_distance = 0.0;
-                    previous_detected_distance = 0.0;
-                } else {
-                    // Aggiorna distanza ma non notificare
-                    previous_detected_distance = closest_distance;
-                }
-                
-                return nullptr;
-            }
-            
-            // Se distanza cambiata meno di 10m, ignora (evita notifiche continue)
-            if (abs(distance_change) < 10.0) {
-                // Aggiorna comunque la distanza per il prossimo check
-                previous_detected_distance = closest_distance;
-                return nullptr;
-            }
-        } else {
-            // Nuova speedcam rilevata o prima rilevazione, imposta distanza precedente
-            previous_detected_distance = closest_distance;
-        }
-        
-        // Aggiorna tracking
-        last_detected_speedcam_id = closest_speedcam->id;
-        last_detected_distance = closest_distance;
-    }
-    
-    return closest_speedcam;
+
+    return nullptr;
 }
 
 void SpeedcamController::notifySpeedcamDetected(const Speedcam& speedcam, float distance) {
@@ -412,6 +314,9 @@ void SpeedcamController::notifySpeedcamDetected(const Speedcam& speedcam, float 
 
 void SpeedcamController::setEnabled(bool enabled) {
     this->enabled = enabled;
+    if (!enabled) {
+        tracker.reset();
+    }
 }
 
 bool SpeedcamController::isEnabled() const {

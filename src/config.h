@@ -4,7 +4,7 @@
 // Compatibilità Arduino IDE
 #if defined(ARDUINO) && ARDUINO >= 100
 #include "Arduino.h"
-#else
+#elif !defined(MICRONAV_HOST_TEST)
 #include "WProgram.h"
 #endif
 
@@ -30,9 +30,23 @@
 #define SPEEDCAM_DETECTION_RADIUS 1000  // Raggio di rilevazione in metri (default 1km)
 #define SETTINGS_RADIUS_MIN_M 200       // Limiti regolabili da touch (devono coincidere con lo slider in ui_micronav.c)
 #define SETTINGS_RADIUS_MAX_M 2000
-#define SPEEDCAM_CHECK_INTERVAL 5000    // Intervallo tra check in millisecondi (default 5 secondi)
+#define SPEEDCAM_CHECK_INTERVAL 1000    // Intervallo tra check in millisecondi (unico throttle, il GPS aggiorna a 1 Hz)
 #define SPEEDCAM_JSON_PATH "/speedcams.json"
 #define SPEEDCAM_ENABLED true
+
+// Detection direzionale (vedi openspec/changes/refine-speedcam-detection/design.md)
+#define SPEEDCAM_MIN_SPEED_KMH 10          // Sotto questa velocita' il course GPS non e' affidabile
+#define SPEEDCAM_HEADING_HOLD_MS 10000     // Quanto si mantiene l'ultimo heading valido sotto soglia
+#define SPEEDCAM_HEADING_FALLBACK_MIN_M 10 // Distanza minima tra fix per calcolare il bearing di ripiego
+#define SPEEDCAM_CONE_HALF_ANGLE_DEG 60    // Semiangolo del cono di marcia
+#define SPEEDCAM_NEAR_FIELD_M 40           // Entro questa distanza il cono non si applica
+#define SPEEDCAM_PASSED_ANGLE_DEG 90       // Oltre questo angolo il POI e' alle spalle (superato)
+#define SPEEDCAM_PASSED_HYSTERESIS_M 25    // Allontanamento oltre min_distance + isteresi = superato
+#define SPEEDCAM_RELEASE_FACTOR 1.2f       // Un POI superato torna eleggibile oltre raggio * fattore
+#define SPEEDCAM_DIR_NONE 0xFFFF           // POI senza direzione nel database
+#define SPEEDCAM_DIR_TOLERANCE_DEG 60      // Scarto massimo tra heading e direzione del POI
+#define SPEEDCAM_DIR_OFFSET_DEG 0          // Da verificare su strada: se "richtung" indica il lato verso cui punta
+                                           // il dispositivo e non il traffico controllato, impostare 180
 
 // Display Configuration (GC9A01 240x240 onboard)
 #define DISPLAY_WIDTH 240
@@ -94,15 +108,15 @@
 // Memory Configuration
 // ESP32-C3 ha ~400KB RAM totale, ogni Speedcam è ~24 bytes
 // 2000 speedcam = ~48KB (ragionevole per ESP32-C3)
-#define MAX_SPEEDCAM_COUNT 500  // Numero massimo speedcam in memoria default 4000
+#define MAX_SPEEDCAM_COUNT 2000  // Numero massimo speedcam in memoria (~48 KB)
 #define SPEEDCAM_PRE_FILTER_ENABLED true  // Abilita pre-filtraggio geografico
 
-// Pre-filtraggio geografico (bounding box Italia settentrionale)
-// Utile per ridurre numero speedcam caricate in memoria
-#define PRE_FILTER_MIN_LAT 43.0   // Latitudine minima
-#define PRE_FILTER_MAX_LAT 47.0   // Latitudine massima
-#define PRE_FILTER_MIN_LNG 6.0    // Longitudine minima
-#define PRE_FILTER_MAX_LNG 14.0   // Longitudine massima
+// Pre-filtraggio geografico: box centrato sulla posizione reale, ricalcolato periodicamente.
+// Senza fix GPS si usa il centro di ripiego (Milano) finche' non arriva la prima posizione.
+#define PRE_FILTER_HALF_SPAN_DEG 0.5       // Semi-lato del box in gradi (~55 km in latitudine)
+#define PRE_FILTER_FALLBACK_LAT 45.46      // Centro di ripiego senza fix (Milano)
+#define PRE_FILTER_FALLBACK_LNG 9.19
+#define SPEEDCAM_DB_REFRESH_MS 1800000UL   // Ricalcolo del box e ricarica del database (30 minuti)
 
 // Timing
 #define MAIN_LOOP_DELAY 5  // Delay loop principale in millisecondi (basso: serve a LVGL/touch)

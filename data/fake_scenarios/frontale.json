@@ -1,0 +1,96 @@
+{
+ "description": "Avvicinamento frontale al POI 86435 (richtung 210) e passaggio: alert da ~600 m, nascosto dopo il passaggio, nessun ri-alert",
+ "loop": false,
+ "route": [
+  {
+   "lat": 43.670462,
+   "lng": 13.110984,
+   "speed": 60,
+   "course": 210
+  },
+  {
+   "lat": 43.670073,
+   "lng": 13.110674,
+   "speed": 60,
+   "course": 210
+  },
+  {
+   "lat": 43.669684,
+   "lng": 13.110364,
+   "speed": 60,
+   "course": 210
+  },
+  {
+   "lat": 43.669295,
+   "lng": 13.110053,
+   "speed": 60,
+   "course": 210
+  },
+  {
+   "lat": 43.668906,
+   "lng": 13.109743,
+   "speed": 60,
+   "course": 210
+  },
+  {
+   "lat": 43.668517,
+   "lng": 13.109432,
+   "speed": 60,
+   "course": 210
+  },
+  {
+   "lat": 43.668128,
+   "lng": 13.109122,
+   "speed": 60,
+   "course": 210
+  },
+  {
+   "lat": 43.667739,
+   "lng": 13.108811,
+   "speed": 60,
+   "course": 210
+  },
+  {
+   "lat": 43.66735,
+   "lng": 13.108501,
+   "speed": 60,
+   "course": 210
+  },
+  {
+   "lat": 43.666961,
+   "lng": 13.10819,
+   "speed": 60,
+   "course": 210
+  },
+  {
+   "lat": 43.666572,
+   "lng": 13.10788,
+   "speed": 60,
+   "course": 210
+  },
+  {
+   "lat": 43.666183,
+   "lng": 13.107569,
+   "speed": 60,
+   "course": 210
+  },
+  {
+   "lat": 43.665794,
+   "lng": 13.107259,
+   "speed": 60,
+   "course": 210
+  },
+  {
+   "lat": 43.665405,
+   "lng": 13.106948,
+   "speed": 60,
+   "course": 210
+  },
+  {
+   "lat": 43.665016,
+   "lng": 13.106638,
+   "speed": 60,
+   "course": 210
+  }
+ ]
+}

@@ -166,18 +166,17 @@ void setup() {
     Serial.flush();
     delay(100);
     
-    // Carica con pre-filtraggio geografico se abilitato
-    bool pre_filter = SPEEDCAM_PRE_FILTER_ENABLED;
-    Serial.print("[Setup] Pre-filtro geografico: ");
-    Serial.println(pre_filter ? "abilitato" : "disabilitato");
+    // Box geografico centrato sulla posizione reale (es. GPS fake, o fix gia' disponibile);
+    // senza fix si parte da Milano e si ricarica al primo fix (vedi SpeedcamController)
+    GPSPosition start_position = gps_controller->getPosition();
+    bool has_start_fix = start_position.is_valid;
+    double db_lat = has_start_fix ? start_position.latitude : PRE_FILTER_FALLBACK_LAT;
+    double db_lng = has_start_fix ? start_position.longitude : PRE_FILTER_FALLBACK_LNG;
+    Serial.print("[Setup] Box database centrato su ");
+    Serial.println(has_start_fix ? "posizione GPS" : "ripiego (Milano)");
     Serial.flush();
-    delay(100);
-    
-    if (!speedcam_controller->loadDatabase(
-            SPEEDCAM_JSON_PATH, 
-            pre_filter,
-            PRE_FILTER_MIN_LAT, PRE_FILTER_MAX_LAT,
-            PRE_FILTER_MIN_LNG, PRE_FILTER_MAX_LNG)) {
+
+    if (!speedcam_controller->loadDatabaseAround(db_lat, db_lng, has_start_fix)) {
         Serial.println("[Setup] ERRORE: Database speedcam non caricato!");
         Serial.println("[Setup] Assicurati che il file sia presente su LittleFS");
         Serial.flush();
@@ -220,26 +219,21 @@ void loop() {
         current_position.satellites
     );
 
-    // 3. Verifica speedcam periodicamente
-    static unsigned long last_speedcam_check = 0;
-    if (millis() - last_speedcam_check > SPEEDCAM_CHECK_INTERVAL) {
-        GPSPosition position = current_position;
-        // In modalità fake, la posizione è sempre valida anche se hasFix() potrebbe non essere true
-        // Verifica direttamente is_valid invece di hasFix()
-        if (position.is_valid) {
-            speedcam_controller->checkSpeedcams(&position);
-        } else {
-            #ifdef DEBUG_ENABLED
-            if (DEBUG_ENABLED) {
-                static unsigned long last_warn = 0;
-                if (millis() - last_warn > 5000) {
-                    Serial.println("[Loop] Posizione GPS non valida, skip check speedcam");
-                    last_warn = millis();
-                }
+    // 3. Verifica speedcam (il throttle a SPEEDCAM_CHECK_INTERVAL e' dentro checkSpeedcams)
+    // In modalità fake, la posizione è sempre valida anche se hasFix() potrebbe non essere true
+    // Verifica direttamente is_valid invece di hasFix()
+    if (current_position.is_valid) {
+        speedcam_controller->checkSpeedcams(&current_position);
+    } else {
+        #ifdef DEBUG_ENABLED
+        if (DEBUG_ENABLED) {
+            static unsigned long last_warn = 0;
+            if (millis() - last_warn > 5000) {
+                Serial.println("[Loop] Posizione GPS non valida, skip check speedcam");
+                last_warn = millis();
             }
-            #endif
         }
-        last_speedcam_check = millis();
+        #endif
     }
     
     // 4. Aggiorna display (gestisce timeout alert, ecc.)

@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include <math.h>
+#include "geo_utils.h"  // bearing, differenza angolare, cono di marcia (senza Arduino)
 
 /**
  * Calcola distanza tra due punti geografici usando formula di Haversine

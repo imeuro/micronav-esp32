@@ -6,6 +6,7 @@
 #include "json_parser.h"
 #include "utils.h"
 #include "config.h"
+#include "speedcam_tracker.h"
 
 // Forward declaration
 class DisplayController;
@@ -42,9 +43,17 @@ public:
                      float min_lng = 0, float max_lng = 0);
     
     /**
-     * Verifica speedcam vicine basandosi sulla posizione GPS
+     * Carica il database filtrando per un box di PRE_FILTER_HALF_SPAN_DEG attorno a (lat, lng).
+     * @param from_fix true se il centro e' una posizione GPS reale; false se e' il ripiego,
+     *                 nel qual caso al primo fix valido il database viene ricaricato
+     */
+    bool loadDatabaseAround(double lat, double lng, bool from_fix);
+
+    /**
+     * Verifica speedcam vicine basandosi su posizione e direzione di marcia.
+     * Mostra l'alert per il POI piu' vicino davanti a noi, lo nasconde al passaggio.
      * @param position Posizione GPS (opzionale, se nullptr usa GPS controller)
-     * @return Puntatore a speedcam rilevata, nullptr se nessuna trovata
+     * @return Puntatore a speedcam da segnalare, nullptr se nessuna
      */
     const Speedcam* checkSpeedcams(const GPSPosition* position = nullptr);
     
@@ -96,22 +105,23 @@ private:
     float detection_radius;
     unsigned long check_interval;
     
-    // Stato rilevazione (anti-duplicati)
-    uint32_t last_detected_speedcam_id;
+    // Stato rilevazione: state machine CANDIDATE/PASSED del POI tracciato
+    SpeedcamTracker tracker;
     float last_detected_distance;
-    float previous_detected_distance;  // Distanza precedente per rilevare allontanamento
     unsigned long last_check_time;
+
+    // Area del database
+    bool db_from_fix;               // il box attuale e' centrato su una posizione reale
+    unsigned long last_db_load_ms;
+
+    /**
+     * Ricarica il database attorno alla posizione se serve (primo fix o scaduti i 30 minuti).
+     * Salta finche' c'e' un POI tracciato, per non bloccare il display durante un alert.
+     */
+    void refreshDatabaseIfDue(const GPSPosition& position);
     
     // Statistiche
     Stats stats;
-    
-    /**
-     * Rileva speedcam entro raggio dalla posizione GPS
-     * @param position Posizione GPS
-     * @param radius Raggio in metri
-     * @return Puntatore a speedcam più vicina, nullptr se nessuna trovata
-     */
-    const Speedcam* detectSpeedcam(const GPSPosition& position, float radius);
     
     /**
      * Notifica rilevazione speedcam

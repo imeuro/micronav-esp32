@@ -1,0 +1,78 @@
+{
+ "description": "Parte 100 m oltre il POI 86435 nella sua direzione: nessun alert",
+ "loop": false,
+ "route": [
+  {
+   "lat": 43.665016,
+   "lng": 13.106638,
+   "speed": 60,
+   "course": 210
+  },
+  {
+   "lat": 43.664627,
+   "lng": 13.106328,
+   "speed": 60,
+   "course": 210
+  },
+  {
+   "lat": 43.664238,
+   "lng": 13.106017,
+   "speed": 60,
+   "course": 210
+  },
+  {
+   "lat": 43.663849,
+   "lng": 13.105707,
+   "speed": 60,
+   "course": 210
+  },
+  {
+   "lat": 43.66346,
+   "lng": 13.105396,
+   "speed": 60,
+   "course": 210
+  },
+  {
+   "lat": 43.663071,
+   "lng": 13.105086,
+   "speed": 60,
+   "course": 210
+  },
+  {
+   "lat": 43.662682,
+   "lng": 13.104775,
+   "speed": 60,
+   "course": 210
+  },
+  {
+   "lat": 43.662293,
+   "lng": 13.104465,
+   "speed": 60,
+   "course": 210
+  },
+  {
+   "lat": 43.661904,
+   "lng": 13.104155,
+   "speed": 60,
+   "course": 210
+  },
+  {
+   "lat": 43.661515,
+   "lng": 13.103844,
+   "speed": 60,
+   "course": 210
+  },
+  {
+   "lat": 43.661126,
+   "lng": 13.103534,
+   "speed": 60,
+   "course": 210
+  },
+  {
+   "lat": 43.660737,
+   "lng": 13.103223,
+   "speed": 60,
+   "course": 210
+  }
+ ]
+}

@@ -19,13 +19,15 @@ struct Speedcam {
     char vmax[4];        // "50", "/", ecc.
     char status;         // 'A' (attivo) o 'L' (inattivo)
     char art;            // Tipo: 'G', 'A', 'BK', ecc.
+    uint16_t dir;        // Direzione controllata in gradi ("richtung"), SPEEDCAM_DIR_NONE se assente
     
     Speedcam() : 
         id(0), 
         lat(0.0), 
         lng(0.0), 
         status(' '), 
-        art(' ') {
+        art(' '),
+        dir(SPEEDCAM_DIR_NONE) {
         type[0] = '\0';
         vmax[0] = '\0';
     }
@@ -80,11 +82,33 @@ public:
                            float min_lng, float max_lng);
     
     /**
+     * Imposta un bounding box applicato durante il caricamento, prima del limite
+     * max_count (i POI fuori area non consumano posti nell'array)
+     */
+    void setBoundingBox(float min_lat, float max_lat, float min_lng, float max_lng);
+
+    /** POI scartati nell'ultimo caricamento perche' fuori dal bounding box */
+    int getDiscardedByBBox() const { return discarded_bbox; }
+
+    /** POI validi (nell'area) scartati nell'ultimo caricamento per il limite max_count */
+    int getDiscardedByCap() const { return discarded_cap; }
+
+    /**
      * Verifica se LittleFS è inizializzato
      */
     static bool isLittleFSMounted();
 
 private:
+    bool bbox_enabled;
+    float bbox_min_lat, bbox_max_lat, bbox_min_lng, bbox_max_lng;
+    int discarded_bbox;
+    int discarded_cap;
+
+    /**
+     * Applica bounding box e limite max_count; salva in speedcams[count++] se accettato
+     */
+    void acceptSpeedcam(const Speedcam& sc, Speedcam* speedcams, int& count, int max_count);
+
     /**
      * Parsa un oggetto speedcam dal JSON
      */

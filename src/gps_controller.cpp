@@ -111,9 +111,17 @@ void GPSController::updatePosition() {
         current_position.speed = gps_parser.speed.kmph();
     }
     
-    if (gps_parser.course.isValid()) {
-        current_position.course = gps_parser.course.deg();
+    // Heading: course dell'RMC solo se valido, recente e sopra la soglia di velocita';
+    // altrimenti hold / bearing tra fix (mai course stale)
+    float speed_for_heading = gps_parser.speed.isValid() ? (float)gps_parser.speed.kmph() : 0.0f;
+    bool course_fresh = gps_parser.course.isValid() && gps_parser.course.age() < 2000;
+    if (current_position.is_valid) {
+        heading_tracker.update(millis(), current_position.latitude, current_position.longitude,
+                               speed_for_heading, course_fresh,
+                               course_fresh ? (float)gps_parser.course.deg() : 0.0f);
     }
+    current_position.course_valid = current_position.is_valid && heading_tracker.isValid();
+    current_position.course = current_position.course_valid ? heading_tracker.getCourse() : 0.0f;
     
     current_position.satellites = gps_parser.satellites.value();
     current_position.hdop = gps_parser.hdop.hdop();
@@ -356,6 +364,7 @@ bool GPSController::loadFakeRoute(const char* json_path) {
         fake_route[i].altitude = point.containsKey("altitude") ? point["altitude"].as<double>() : 0.0;
         fake_route[i].speed = point.containsKey("speed") ? point["speed"].as<float>() : 0.0;
         fake_route[i].course = point.containsKey("course") ? point["course"].as<float>() : 0.0;
+        fake_route[i].course_valid = point.containsKey("course");
         fake_route[i].satellites = point.containsKey("satellites") ? point["satellites"].as<uint8_t>() : 8;
         fake_route[i].hdop = point.containsKey("hdop") ? point["hdop"].as<float>() : 1.5;
         i++;
@@ -387,7 +396,10 @@ void GPSController::updateFakePosition() {
     current_position.longitude = point.lng;
     current_position.altitude = point.altitude;
     current_position.speed = point.speed;
-    current_position.course = point.course;
+    heading_tracker.update(current_time, point.lat, point.lng, point.speed,
+                           point.course_valid, point.course);
+    current_position.course_valid = heading_tracker.isValid();
+    current_position.course = current_position.course_valid ? heading_tracker.getCourse() : 0.0f;
     current_position.satellites = point.satellites;
     current_position.hdop = point.hdop;
     current_position.is_valid = true;

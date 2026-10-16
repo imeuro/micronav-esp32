@@ -1,0 +1,96 @@
+{
+ "description": "Strada parallela a 500 m dal POI 86435 (laterale): nessun alert",
+ "loop": false,
+ "route": [
+  {
+   "lat": 43.668216,
+   "lng": 13.116362,
+   "speed": 60,
+   "course": 210
+  },
+  {
+   "lat": 43.667827,
+   "lng": 13.116051,
+   "speed": 60,
+   "course": 210
+  },
+  {
+   "lat": 43.667438,
+   "lng": 13.115741,
+   "speed": 60,
+   "course": 210
+  },
+  {
+   "lat": 43.667049,
+   "lng": 13.11543,
+   "speed": 60,
+   "course": 210
+  },
+  {
+   "lat": 43.66666,
+   "lng": 13.11512,
+   "speed": 60,
+   "course": 210
+  },
+  {
+   "lat": 43.666271,
+   "lng": 13.114809,
+   "speed": 60,
+   "course": 210
+  },
+  {
+   "lat": 43.665882,
+   "lng": 13.114499,
+   "speed": 60,
+   "course": 210
+  },
+  {
+   "lat": 43.665493,
+   "lng": 13.114188,
+   "speed": 60,
+   "course": 210
+  },
+  {
+   "lat": 43.665104,
+   "lng": 13.113878,
+   "speed": 60,
+   "course": 210
+  },
+  {
+   "lat": 43.664715,
+   "lng": 13.113567,
+   "speed": 60,
+   "course": 210
+  },
+  {
+   "lat": 43.664326,
+   "lng": 13.113257,
+   "speed": 60,
+   "course": 210
+  },
+  {
+   "lat": 43.663937,
+   "lng": 13.112947,
+   "speed": 60,
+   "course": 210
+  },
+  {
+   "lat": 43.663548,
+   "lng": 13.112636,
+   "speed": 60,
+   "course": 210
+  },
+  {
+   "lat": 43.663159,
+   "lng": 13.112326,
+   "speed": 60,
+   "course": 210
+  },
+  {
+   "lat": 43.66277,
+   "lng": 13.112015,
+   "speed": 60,
+   "course": 210
+  }
+ ]
+}
