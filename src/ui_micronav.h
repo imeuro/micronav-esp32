@@ -53,6 +53,10 @@ void micronav_set_settings_values(int brightness_pct, int radius_m);
 // per sospendere il ciclo demo automatico mentre l'utente regola lo slider)
 bool micronav_is_settings_active(void);
 
+// Chiude le pagine impostazioni tornando alla schermata idle (usato dal
+// timeout di inattivita')
+void micronav_close_settings(void);
+
 #ifdef __cplusplus
 }
 #endif

@@ -7,6 +7,7 @@
 - [x] 2.2 API `micronav_set_settings_values` / `micronav_set_radius_callback`
 - [x] 2.3 Navigazione a swipe ad anello verticale con indicatore di pagina (sostituisce tocco su pallino/titolo)
 - [x] 2.4 Swipe compatibile con il trascinamento degli archi
+- [x] 2.5 Chiusura automatica delle impostazioni dopo 5 s di inattivita'
 
 ## 3. Integrazione
 - [x] 3.1 `DisplayController`: carica/salva impostazioni, callback raggio
@@ -18,3 +19,4 @@
 - [x] 4.2 Swipe in entrambe le direzioni, da idle e da alert, senza interferenze con gli slider
 - [ ] 4.3 Raggio piccolo/grande cambia effettivamente quando scatta l'alert (non ancora verificato)
 - [ ] 4.4 Touch reattivo durante il caricamento DB (non ancora verificato esplicitamente)
+- [x] 4.5 Dopo 5 s senza toccare, le impostazioni tornano alla schermata iniziale

@@ -336,6 +336,11 @@ void micronav_show_settings_screen(int brightness_initial_pct) {
     lv_scr_load(scr_settings);
 }
 
+void micronav_close_settings(void) {
+    settings_active = false;
+    lv_scr_load_anim(scr_idle, LV_SCR_LOAD_ANIM_FADE_ON, 250, 0, false);
+}
+
 bool micronav_is_settings_active(void) {
     return settings_active;
 }

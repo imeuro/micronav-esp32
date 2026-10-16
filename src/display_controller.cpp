@@ -244,6 +244,12 @@ void DisplayController::update() {
     }
     serviceLvgl();
 
+    // Impostazioni aperte ma nessun tocco da un po': torna alla schermata iniziale
+    if (micronav_is_settings_active() &&
+        lv_disp_get_inactive_time(NULL) > SETTINGS_IDLE_TIMEOUT_MS) {
+        micronav_close_settings();
+    }
+
     // Salva in NVS solo alla chiusura delle impostazioni (non a ogni evento slider)
     bool settings_active = micronav_is_settings_active();
     if (settings_were_active && !settings_active && settings_dirty) {

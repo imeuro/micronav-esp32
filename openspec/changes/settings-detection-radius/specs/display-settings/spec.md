@@ -38,3 +38,14 @@ Il sistema SHALL mantenere display e touch reattivi mentre il database speedcam 
 #### Scenario: Tocco subito dopo il boot
 - **WHEN** l'utente esegue uno swipe mentre il database e' in caricamento
 - **THEN** la navigazione tra le schermate risponde senza attendere la fine del caricamento
+
+### Requirement: Chiusura automatica per inattivita'
+Il sistema SHALL tornare alla schermata iniziale quando una pagina impostazioni resta aperta senza alcun tocco per 5 secondi (`SETTINGS_IDLE_TIMEOUT_MS`).
+
+#### Scenario: Nessun tocco per 5 secondi
+- **WHEN** una pagina impostazioni e' aperta e non avviene alcun tocco per 5 secondi
+- **THEN** il display torna alla schermata idle e le impostazioni modificate vengono salvate
+
+#### Scenario: Tocco prima della scadenza
+- **WHEN** l'utente tocca lo schermo o trascina uno slider prima dei 5 secondi
+- **THEN** il conto dell'inattivita' riparte da zero
