@@ -41,6 +41,14 @@ typedef void (*micronav_brightness_cb_t)(int percent);
 void micronav_set_brightness_callback(micronav_brightness_cb_t cb);
 void micronav_show_settings_screen(int brightness_initial_pct);
 
+// Seconda pagina impostazioni: raggio di detection in metri (200-2000, passi
+// da 50). La callback riceve il nuovo valore a ogni modifica.
+typedef void (*micronav_radius_cb_t)(int radius_m);
+void micronav_set_radius_callback(micronav_radius_cb_t cb);
+
+// Imposta i valori iniziali degli slider (es. letti dalla memoria)
+void micronav_set_settings_values(int brightness_pct, int radius_m);
+
 // true se la schermata impostazioni e' quella attualmente mostrata (usato
 // per sospendere il ciclo demo automatico mentre l'utente regola lo slider)
 bool micronav_is_settings_active(void);

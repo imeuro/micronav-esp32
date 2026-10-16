@@ -7,6 +7,7 @@
 #include "src/gps_controller.h"
 #include "src/speedcam_controller.h"
 #include "src/display_controller.h"
+#include "src/json_parser.h"
 
 // Puntatori globali - verranno inizializzati in setup()
 // Questo evita che la costruzione degli oggetti blocchi prima che Serial sia inizializzato
@@ -26,6 +27,14 @@ DisplayController* display_controller = nullptr;
 // l'aggiornamento dell'indicatore GPS e il check speedcam vengono fatti entrambi
 // qui in loop(), leggendo la posizione con gps_controller->getPosition() dopo
 // gps_controller->update().
+
+static void onRadiusChanged(float radius_m) {
+    if (speedcam_controller) speedcam_controller->setDetectionRadius(radius_m);
+}
+
+static void onDatabaseLoadProgress() {
+    if (display_controller) display_controller->update();
+}
 
 void setup() {
     // Inizializza Serial per debug PRIMA di tutto
@@ -132,6 +141,12 @@ void setup() {
     #endif
     delay(100);
     
+    // Raggio di detection: valore salvato (letto da display_controller->begin()) e
+    // aggiornamenti da touch
+    speedcam_controller->setDetectionRadius((float)display_controller->getDetectionRadius());
+    display_controller->setRadiusChangedCallback(onRadiusChanged);
+    JSONParser::setProgressCallback(onDatabaseLoadProgress);  // display/touch vivi durante il caricamento DB
+
     // 4. Inizializza Speedcam controller
     Serial.println("[Setup] Inizializzazione Speedcam controller...");
     Serial.flush();

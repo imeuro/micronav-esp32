@@ -28,6 +28,8 @@
 
 // Speedcam Configuration
 #define SPEEDCAM_DETECTION_RADIUS 1000  // Raggio di rilevazione in metri (default 1km)
+#define SETTINGS_RADIUS_MIN_M 200       // Limiti regolabili da touch (devono coincidere con lo slider in ui_micronav.c)
+#define SETTINGS_RADIUS_MAX_M 2000
 #define SPEEDCAM_CHECK_INTERVAL 5000    // Intervallo tra check in millisecondi (default 5 secondi)
 #define SPEEDCAM_JSON_PATH "/speedcams.json"
 #define SPEEDCAM_ENABLED true

@@ -17,6 +17,10 @@ DisplayController::DisplayController() :
     gps_satellites(0),
     gps_dirty(true),
     brightness_percent(BACKLIGHT_DEFAULT_PERCENT),
+    radius_m(SPEEDCAM_DETECTION_RADIUS),
+    settings_dirty(false),
+    settings_were_active(false),
+    radius_changed_cb(nullptr),
     last_tick_ms(0),
     buf1(nullptr),
     buf2(nullptr) {
@@ -36,6 +40,10 @@ bool DisplayController::begin() {
     #endif
 
     s_instance = this;
+
+    Settings saved = settingsLoad();
+    brightness_percent = saved.brightness_percent;
+    radius_m = saved.radius_m;
 
     // Backlight via PWM, spento finche' la prima schermata non e' disegnata
     ledcAttach(DISPLAY_BL_PIN, BACKLIGHT_PWM_FREQ, BACKLIGHT_PWM_RESOLUTION);
@@ -74,6 +82,7 @@ bool DisplayController::begin() {
         lv_indev_drv_init(&indev_drv);
         indev_drv.type = LV_INDEV_TYPE_POINTER;
         indev_drv.read_cb = touchCallback;
+        indev_drv.gesture_limit = 40;  // swipe tra schermate (ui_micronav.c)
         lv_indev_drv_register(&indev_drv);
     } else {
         Serial.println("[Display] Touch CST816S non rilevato (UI senza touch)");
@@ -81,6 +90,8 @@ bool DisplayController::begin() {
 
     micronav_ui_init();
     micronav_set_brightness_callback(brightnessCallback);
+    micronav_set_radius_callback(radiusCallback);
+    micronav_set_settings_values(brightness_percent, radius_m);
 
     last_tick_ms = millis();
     is_initialized = true;
@@ -139,9 +150,21 @@ void DisplayController::brightnessCallback(int percent) {
     if (s_instance) s_instance->setBrightness(percent);
 }
 
+void DisplayController::radiusCallback(int radius_m) {
+    if (!s_instance) return;
+    s_instance->radius_m = radius_m;
+    s_instance->settings_dirty = true;
+    if (s_instance->radius_changed_cb) s_instance->radius_changed_cb((float)radius_m);
+}
+
+void DisplayController::setRadiusChangedCallback(void (*cb)(float radius_m)) {
+    radius_changed_cb = cb;
+}
+
 void DisplayController::setBrightness(int percent) {
     if (percent < 10) percent = 10;
     if (percent > 100) percent = 100;
+    if (percent != brightness_percent) settings_dirty = true;
     brightness_percent = percent;
     ledcWrite(DISPLAY_BL_PIN, (uint32_t)((percent * 255L) / 100));
 }
@@ -220,6 +243,14 @@ void DisplayController::update() {
         hideSpeedcamAlert();
     }
     serviceLvgl();
+
+    // Salva in NVS solo alla chiusura delle impostazioni (non a ogni evento slider)
+    bool settings_active = micronav_is_settings_active();
+    if (settings_were_active && !settings_active && settings_dirty) {
+        settingsSave({brightness_percent, radius_m});
+        settings_dirty = false;
+    }
+    settings_were_active = settings_active;
 }
 
 void DisplayController::updateGPSIndicator(bool has_fix, uint8_t satellites) {

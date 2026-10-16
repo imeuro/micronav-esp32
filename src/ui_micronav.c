@@ -7,9 +7,20 @@ static lv_obj_t *scr_alert = NULL;
 static lv_obj_t *scr_settings = NULL;
 static bool settings_active = false;
 
+static lv_obj_t *scr_settings_radius = NULL;
 static lv_obj_t *settings_arc = NULL;
 static lv_obj_t *settings_value_label = NULL;
+static lv_obj_t *radius_arc = NULL;
+static lv_obj_t *radius_value_label = NULL;
 static micronav_brightness_cb_t brightness_callback = NULL;
+static micronav_radius_cb_t radius_callback = NULL;
+
+#define RADIUS_STEP_M 50
+
+// true se durante il tocco corrente l'utente ha spostato un arco: in quel caso
+// il gesto non deve cambiare pagina (la parte bassa dell'anello, sul vuoto
+// dell'arco, e' comunque 'arco' per il hit test di LVGL)
+static bool arc_value_moved = false;
 
 // Schermata idle
 static lv_obj_t *gps_indicator_circle = NULL;
@@ -56,16 +67,41 @@ static lv_obj_t *create_label(lv_obj_t *parent, const char *text, lv_color_t col
     return label;
 }
 
-// Apre la schermata impostazioni (tap sul pallino GPS nella schermata idle)
-static void gps_icon_click_cb(lv_event_t *e) {
+// Naviga verso una schermata con scorrimento verticale (le schermate sono
+// "impilate": swipe verso l'alto avanza, verso il basso torna indietro)
+static void go_to_screen(lv_obj_t *target, lv_scr_load_anim_t anim) {
+    settings_active = (target == scr_settings || target == scr_settings_radius);
+    lv_scr_load_anim(target, anim, 180, 0, false);
+}
+
+// Anello verticale idle -> luminosita' -> raggio -> idle: swipe verso l'alto
+// avanza, verso il basso va nella direzione opposta (idle -> raggio -> luminosita' -> idle)
+static void arc_released_cb(lv_event_t *e) {
     (void)e;
-    settings_active = true;
-    lv_scr_load(scr_settings);
+    arc_value_moved = false;
+}
+
+static void screen_gesture_cb(lv_event_t *e) {
+    if (arc_value_moved) return;
+    lv_obj_t *cur = lv_event_get_current_target(e);
+    if (cur != lv_scr_act()) return;
+    lv_dir_t dir = lv_indev_get_gesture_dir(lv_indev_get_act());
+
+    if (dir == LV_DIR_TOP) {
+        if (cur == scr_idle || cur == scr_alert) go_to_screen(scr_settings, LV_SCR_LOAD_ANIM_MOVE_TOP);
+        else if (cur == scr_settings) go_to_screen(scr_settings_radius, LV_SCR_LOAD_ANIM_MOVE_TOP);
+        else if (cur == scr_settings_radius) go_to_screen(scr_idle, LV_SCR_LOAD_ANIM_MOVE_TOP);
+    } else if (dir == LV_DIR_BOTTOM) {
+        if (cur == scr_idle || cur == scr_alert) go_to_screen(scr_settings_radius, LV_SCR_LOAD_ANIM_MOVE_BOTTOM);
+        else if (cur == scr_settings_radius) go_to_screen(scr_settings, LV_SCR_LOAD_ANIM_MOVE_BOTTOM);
+        else if (cur == scr_settings) go_to_screen(scr_idle, LV_SCR_LOAD_ANIM_MOVE_BOTTOM);
+    }
 }
 
 // Arco luminosita': aggiorna l'etichetta percentuale e notifica il
 // firmware (callback registrata con micronav_set_brightness_callback)
 static void settings_arc_event_cb(lv_event_t *e) {
+    arc_value_moved = true;
     lv_obj_t *arc = lv_event_get_target(e);
     int value = lv_arc_get_value(arc);
     char buf[8];
@@ -74,11 +110,17 @@ static void settings_arc_event_cb(lv_event_t *e) {
     if (brightness_callback) brightness_callback(value);
 }
 
-// Torna alla schermata idle
-static void settings_back_cb(lv_event_t *e) {
-    (void)e;
-    settings_active = false;
-    lv_scr_load(scr_idle);
+// Arco raggio: arrotonda a passi di RADIUS_STEP_M, aggiorna etichetta e notifica
+static void radius_arc_event_cb(lv_event_t *e) {
+    arc_value_moved = true;
+    lv_obj_t *arc = lv_event_get_target(e);
+    int value = lv_arc_get_value(arc);
+    int snapped = ((value + RADIUS_STEP_M / 2) / RADIUS_STEP_M) * RADIUS_STEP_M;
+    if (snapped != value) lv_arc_set_value(arc, snapped);
+    char buf[12];
+    snprintf(buf, sizeof(buf), "%d m", snapped);
+    lv_label_set_text(radius_value_label, buf);
+    if (radius_callback) radius_callback(snapped);
 }
 
 // Crea indicatore GPS (pallino in alto) + testo stato/satelliti (in basso),
@@ -115,41 +157,61 @@ static void build_idle_screen(void) {
     lv_obj_set_pos(logo, 20, 95);
 
     build_gps_widgets(scr_idle, &gps_indicator_circle, &gps_status_label, &gps_sat_label);
-
-    // Tocca il pallino GPS per aprire le impostazioni (luminosità)
-    lv_obj_add_flag(gps_indicator_circle, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_set_ext_click_area(gps_indicator_circle, 30);  // il pallino e' solo 16px: area di tocco allargata
-    lv_obj_add_event_cb(gps_indicator_circle, gps_icon_click_cb, LV_EVENT_CLICKED, NULL);
 }
 
-// Crea la schermata impostazioni: arco per regolare la luminosità (10-100%),
-// con etichetta percentuale al centro e link "Indietro" in basso.
-static void build_settings_screen(void) {
-    scr_settings = create_black_screen();
+// Crea una pagina impostazioni: arco 215px, valore al centro, titolo sotto il
+// valore, indicatore di pagina (due puntini) in basso. La navigazione e' a
+// swipe (screen_gesture_cb); se l'arco e' stato spostato durante il tocco
+// il gesto viene ignorato (arc_value_moved).
+static lv_obj_t *build_settings_page(const char *title_text, int page_index,
+                                      int range_min, int range_max, int value,
+                                      const char *value_text, lv_event_cb_t arc_cb,
+                                      lv_obj_t **arc_out, lv_obj_t **value_label_out) {
+    lv_obj_t *scr = create_black_screen();
 
-    lv_obj_t *title = create_label(scr_settings, "Luminosita'", lv_color_white());
-    lv_obj_align(title, LV_ALIGN_CENTER, 0, 28);  // sotto il valore percentuale
+    lv_obj_t *arc = lv_arc_create(scr);
+    lv_obj_set_size(arc, 215, 215);
+    lv_obj_center(arc);
+    lv_arc_set_bg_angles(arc, 135, 45);  // arco a "misuratore", apertura in basso
+    lv_arc_set_rotation(arc, 0);
+    lv_arc_set_range(arc, range_min, range_max);
+    lv_arc_set_value(arc, value);
+    lv_obj_set_style_arc_color(arc, COLOR_MICRONAV_RED, LV_PART_INDICATOR);
+    lv_obj_set_style_arc_width(arc, 10, LV_PART_INDICATOR);
+    lv_obj_set_style_arc_width(arc, 10, LV_PART_MAIN);
+    lv_obj_add_event_cb(arc, arc_released_cb, LV_EVENT_RELEASED, NULL);
+    lv_obj_add_event_cb(arc, arc_released_cb, LV_EVENT_PRESS_LOST, NULL);
+    lv_obj_add_event_cb(arc, arc_cb, LV_EVENT_VALUE_CHANGED, NULL);
 
-    settings_arc = lv_arc_create(scr_settings);
-    lv_obj_set_size(settings_arc, 215, 215);
-    lv_obj_center(settings_arc);
-    lv_arc_set_bg_angles(settings_arc, 135, 45);  // arco a "misuratore", apertura in basso
-    lv_arc_set_rotation(settings_arc, 0);
-    lv_arc_set_range(settings_arc, 10, 100);
-    lv_arc_set_value(settings_arc, 80);
-    lv_obj_set_style_arc_color(settings_arc, COLOR_MICRONAV_RED, LV_PART_INDICATOR);
-    lv_obj_set_style_arc_width(settings_arc, 10, LV_PART_INDICATOR);
-    lv_obj_set_style_arc_width(settings_arc, 10, LV_PART_MAIN);
-    lv_obj_add_event_cb(settings_arc, settings_arc_event_cb, LV_EVENT_VALUE_CHANGED, NULL);
+    lv_obj_t *value_label = create_label(scr, value_text, lv_color_white());
+    lv_obj_set_style_text_font(value_label, &lv_font_montserrat_20, LV_PART_MAIN);
+    lv_obj_align_to(value_label, arc, LV_ALIGN_CENTER, 0, 0);
 
-    settings_value_label = create_label(scr_settings, "80%", lv_color_white());
-    lv_obj_set_style_text_font(settings_value_label, &lv_font_montserrat_20, LV_PART_MAIN);
-    lv_obj_align_to(settings_value_label, settings_arc, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_t *title = create_label(scr, title_text, lv_color_white());
+    lv_obj_align(title, LV_ALIGN_CENTER, 0, 28);  // sotto il valore
 
-    lv_obj_t *back_label = create_label(scr_settings, "< Indietro", lv_color_white());
-    lv_obj_align(back_label, LV_ALIGN_BOTTOM_MID, 0, -20);
-    lv_obj_add_flag(back_label, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_event_cb(back_label, settings_back_cb, LV_EVENT_CLICKED, NULL);
+    for (int i = 0; i < 2; i++) {
+        lv_obj_t *dot = lv_obj_create(scr);
+        lv_obj_remove_style_all(dot);
+        lv_obj_set_size(dot, 8, 8);
+        lv_obj_set_style_radius(dot, LV_RADIUS_CIRCLE, LV_PART_MAIN);
+        lv_obj_set_style_bg_opa(dot, LV_OPA_COVER, LV_PART_MAIN);
+        lv_obj_set_style_bg_color(dot, i == page_index ? lv_color_white() : lv_color_make(80, 80, 80), LV_PART_MAIN);
+        lv_obj_align(dot, LV_ALIGN_BOTTOM_MID, i == 0 ? -8 : 8, -22);
+    }
+
+    *arc_out = arc;
+    *value_label_out = value_label;
+    return scr;
+}
+
+static void build_settings_screens(void) {
+    scr_settings = build_settings_page("Luminosita'", 0,
+                                        10, 100, 80, "80%", settings_arc_event_cb,
+                                        &settings_arc, &settings_value_label);
+    scr_settings_radius = build_settings_page("Raggio", 1,
+                                               200, 2000, 1000, "1000 m", radius_arc_event_cb,
+                                               &radius_arc, &radius_value_label);
 }
 
 // Crea la schermata alert: nessun riquadro colorato (sfondo nero), testo
@@ -189,15 +251,16 @@ static void build_alert_screen(void) {
 
     // Indicatore + info GPS, persistenti anche durante l'alert
     build_gps_widgets(scr_alert, &gps_indicator_circle_alert, &gps_status_label_alert, &gps_sat_label_alert);
-    lv_obj_add_flag(gps_indicator_circle_alert, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_set_ext_click_area(gps_indicator_circle_alert, 30);
-    lv_obj_add_event_cb(gps_indicator_circle_alert, gps_icon_click_cb, LV_EVENT_CLICKED, NULL);
 }
 
 void micronav_ui_init(void) {
     build_idle_screen();
     build_alert_screen();
-    build_settings_screen();
+    build_settings_screens();
+    lv_obj_t *screens[] = { scr_idle, scr_alert, scr_settings, scr_settings_radius };
+    for (int i = 0; i < 4; i++) {
+        lv_obj_add_event_cb(screens[i], screen_gesture_cb, LV_EVENT_GESTURE, NULL);
+    }
     lv_scr_load(scr_idle);
 }
 
@@ -246,6 +309,20 @@ void micronav_hide_speedcam_alert(void) {
 
 void micronav_set_brightness_callback(micronav_brightness_cb_t cb) {
     brightness_callback = cb;
+}
+
+void micronav_set_radius_callback(micronav_radius_cb_t cb) {
+    radius_callback = cb;
+}
+
+void micronav_set_settings_values(int brightness_pct, int radius_m) {
+    char buf[12];
+    lv_arc_set_value(settings_arc, brightness_pct);
+    snprintf(buf, sizeof(buf), "%d%%", brightness_pct);
+    lv_label_set_text(settings_value_label, buf);
+    lv_arc_set_value(radius_arc, radius_m);
+    snprintf(buf, sizeof(buf), "%d m", radius_m);
+    lv_label_set_text(radius_value_label, buf);
 }
 
 void micronav_show_settings_screen(int brightness_initial_pct) {

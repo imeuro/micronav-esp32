@@ -5,6 +5,7 @@
 #include <lvgl.h>
 #include "config.h"
 #include "lgfx_panel_config.h"
+#include "settings_store.h"
 
 // Forward declaration
 struct Speedcam;
@@ -43,6 +44,12 @@ public:
     /** Imposta luminosita' backlight (10-100%) */
     void setBrightness(int percent);
 
+    /** Raggio di detection corrente (metri), da impostazioni salvate o touch */
+    int getDetectionRadius() const { return radius_m; }
+
+    /** Callback chiamata quando l'utente cambia il raggio da touch */
+    void setRadiusChangedCallback(void (*cb)(float radius_m));
+
 private:
     LGFX* display;
     bool is_initialized;
@@ -59,6 +66,10 @@ private:
     bool gps_dirty;
 
     int brightness_percent;
+    int radius_m;
+    bool settings_dirty;
+    bool settings_were_active;
+    void (*radius_changed_cb)(float);
     unsigned long last_tick_ms;
 
     // LVGL
@@ -71,6 +82,7 @@ private:
     static void flushCallback(lv_disp_drv_t* drv, const lv_area_t* area, lv_color_t* color_p);
     static void touchCallback(lv_indev_drv_t* drv, lv_indev_data_t* data);
     static void brightnessCallback(int percent);
+    static void radiusCallback(int radius_m);
 
     void serviceLvgl();
 };

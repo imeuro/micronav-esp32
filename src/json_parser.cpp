@@ -6,6 +6,12 @@ JSONParser::JSONParser() {
 JSONParser::~JSONParser() {
 }
 
+static void (*s_progress_cb)() = nullptr;
+
+void JSONParser::setProgressCallback(void (*cb)()) {
+    s_progress_cb = cb;
+}
+
 bool JSONParser::isLittleFSMounted() {
     // Specifica esplicitamente il nome della partizione "littlefs"
     // Primo tentativo: monta senza formattare
@@ -468,6 +474,15 @@ int JSONParser::loadFromFileIncremental(File& file, Speedcam* speedcams, int max
                 
                 in_object = false;
                 obj_pos = 0;
+
+                if (s_progress_cb) {
+                    static unsigned long last_progress = 0;
+                    unsigned long now = millis();
+                    if (now - last_progress >= 30) {
+                        last_progress = now;
+                        s_progress_cb();
+                    }
+                }
             }
         } else if (c == '[') {
             bracket_depth++;

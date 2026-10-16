@@ -37,6 +37,12 @@ struct Speedcam {
  */
 class JSONParser {
 public:
+    /**
+     * Callback chiamata periodicamente (~30 ms) durante il parsing di file grandi,
+     * per mantenere reattivi display e touch mentre il database si carica
+     */
+    static void setProgressCallback(void (*cb)());
+
     JSONParser();
     ~JSONParser();
     
