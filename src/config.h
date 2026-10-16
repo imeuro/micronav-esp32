@@ -14,8 +14,11 @@
 
 // GPS Configuration
 #define GPS_SERIAL_BAUD 9600
-#define GPS_SERIAL_RX_PIN 4    // Da verificare pin UART disponibili ESP32-C3
-#define GPS_SERIAL_TX_PIN 5    // Da verificare pin UART disponibili ESP32-C3
+// Connettore SH1.0-4P onboard (GND, 3.3V, TX, RX) = GPIO21 (TX) / GPIO20 (RX) dell'ESP32-C3;
+// i pin 4/5 sono occupati dal touch CST816S. Cablaggio: TX del GPS -> RX della board (GPIO20),
+// RX del GPS -> TX della board (GPIO21).
+#define GPS_SERIAL_RX_PIN 20   // RX dell'ESP32 (riceve dal TX del GPS)
+#define GPS_SERIAL_TX_PIN 21   // TX dell'ESP32 (invia all'RX del GPS)
 #define GPS_FIX_TIMEOUT 45000  // 45 secondi in millisecondi
 #define GPS_MIN_SATELLITES 4
 #define GPS_MAX_HDOP 5.0

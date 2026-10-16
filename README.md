@@ -125,10 +125,10 @@ Questo è il metodo principale consigliato per lo sviluppo. Utilizza script bash
 Modifica `src/config.h` con i pin corretti per il tuo hardware:
 
 ```cpp
-// GPS (ATTENZIONE: 4 e 5 sono gia' usati dal touch CST816S; con il modulo GPS
-// reale servono altri due pin liberi, da verificare sul pinout della board)
-#define GPS_SERIAL_RX_PIN 4
-#define GPS_SERIAL_TX_PIN 5
+// GPS: connettore SH1.0-4P onboard (GND, 3.3V, TX, RX) = GPIO21 (TX) / GPIO20 (RX).
+// Cablaggio: TX del GPS -> RX della board, RX del GPS -> TX della board.
+#define GPS_SERIAL_RX_PIN 20
+#define GPS_SERIAL_TX_PIN 21
 
 // Touch CST816S (onboard)
 #define TOUCH_SDA_PIN 4
@@ -383,7 +383,7 @@ Su macOS con SDK 27 il link puo' fallire: aggiungere `-isysroot /Library/Develop
 - [x] UI LVGL con touch e font personalizzati (Geist Black)
 - [x] Impostazioni da touch (luminosità, raggio) persistenti in NVS
 - [x] Detection direzionale (cono di marcia, POI superati)
-- [ ] Modulo GPS reale: scelta, cablaggio (pin diversi da 4/5, usati dal touch) e prova su strada con taratura di cono, soglie e `SPEEDCAM_DIR_OFFSET_DEG`
+- [ ] Modulo GPS reale: scelta, collegamento al connettore SH1.0-4P (GPIO20/21) e prova su strada con taratura di cono, soglie e `SPEEDCAM_DIR_OFFSET_DEG`
 - [ ] Formato binario database / pre-filtraggio offline (caricamento piu' rapido)
 - [ ] Icone speedcam (semaforo, autovelox, ecc.)
 - [ ] OTA updates (Over-The-Air)
