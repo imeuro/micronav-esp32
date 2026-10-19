@@ -229,7 +229,12 @@ void loop() {
         if (DEBUG_ENABLED) {
             static unsigned long last_warn = 0;
             if (millis() - last_warn > 5000) {
-                Serial.println("[Loop] Posizione GPS non valida, skip check speedcam");
+                GPSController::Stats gps_stats = gps_controller->getStats();
+                Serial.printf("[Loop] Posizione GPS non valida, skip check speedcam "
+                              "(status=%d sat=%u hdop=%.1f char=%lu frasi_ok=%lu)\n",
+                              (int)gps_controller->getStatus(), current_position.satellites,
+                              current_position.hdop, gps_stats.sentences_received,
+                              gps_stats.valid_sentences);
                 last_warn = millis();
             }
         }

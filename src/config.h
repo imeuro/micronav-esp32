@@ -14,18 +14,18 @@
 
 // GPS Configuration
 #define GPS_SERIAL_BAUD 9600
-// Connettore SH1.0-4P onboard (GND, 3.3V, TX, RX) = GPIO21 (TX) / GPIO20 (RX) dell'ESP32-C3;
-// i pin 4/5 sono occupati dal touch CST816S. Cablaggio: TX del GPS -> RX della board (GPIO20),
-// RX del GPS -> TX della board (GPIO21).
-#define GPS_SERIAL_RX_PIN 20   // RX dell'ESP32 (riceve dal TX del GPS)
-#define GPS_SERIAL_TX_PIN 21   // TX dell'ESP32 (invia all'RX del GPS)
+// Connettore SH1.0-4P onboard (GND, 3.3V, IO20, IO21) = GPIO20 / GPIO21 dell'ESP32-C3;
+// i pin 4/5 sono occupati dal touch CST816S. Verificato con test di scansione (NEO-M8):
+// il TX del GPS e' collegato al pin GPIO21 del connettore, a 9600 baud.
+#define GPS_SERIAL_RX_PIN 21   // RX dell'ESP32 (riceve dal TX del GPS)
+#define GPS_SERIAL_TX_PIN -1   // TX dell'ESP32 non usato (come nello sketch di test che riceveva NMEA)
 #define GPS_FIX_TIMEOUT 45000  // 45 secondi in millisecondi
 #define GPS_MIN_SATELLITES 4
 #define GPS_MAX_HDOP 5.0
 
 // GPS Fake Mode (per test senza GPS hardware)
 // Imposta a true per usare coordinate fake da file JSON invece del GPS reale
-#define GPS_FAKE_MODE true
+#define GPS_FAKE_MODE false
 #define GPS_FAKE_JSON_PATH "/fake_gps.json"  // Path file JSON con coordinate fake
 #define GPS_FAKE_UPDATE_INTERVAL 2000  // Intervallo aggiornamento posizione fake in millisecondi
 

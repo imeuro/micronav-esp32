@@ -18,8 +18,7 @@ GPSController::GPSController() :
 
 GPSController::~GPSController() {
     if (gps_serial) {
-        gps_serial->end();
-        delete gps_serial;
+        gps_serial->end();  // gps_serial punta al globale Serial1: non va eliminato
     }
     if (fake_route) {
         delete[] fake_route;
@@ -27,17 +26,19 @@ GPSController::~GPSController() {
 }
 
 bool GPSController::begin(int rx_pin, int tx_pin) {
-    // Crea seriale hardware per GPS
-    // ESP32-C3 ha più UART, usiamo UART1 per GPS
-    gps_serial = new HardwareSerial(1);
-    
-    if (!gps_serial) {
-        status = GPS_ERROR;
-        return false;
-    }
-    
+    // ESP32-C3 ha più UART, usiamo UART1 (globale Serial1) per GPS,
+    // come nello sketch di test che riceveva NMEA su GPIO21
+    gps_serial = &Serial1;
+
     // Inizializza seriale
-    gps_serial->begin(GPS_SERIAL_BAUD, SERIAL_8N1, rx_pin, tx_pin);
+    // Il primo begin() su GPIO21 (pin TX di UART0 di default sull'ESP32-C3) non riceve nulla:
+    // verificato con lo sketch di test, che inizia a ricevere solo dalla seconda inizializzazione.
+    // Per questo si inizializza due volte.
+    for (int i = 0; i < 2; i++) {
+        gps_serial->end();
+        gps_serial->begin(GPS_SERIAL_BAUD, SERIAL_8N1, rx_pin, tx_pin);
+        delay(50);
+    }
     
     status = GPS_CONNECTING;
     
