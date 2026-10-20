@@ -4,12 +4,9 @@ Firmware ESP32-C3 (board ESP32-2424S012: display GC9A01 240x240 + touch CST816S)
 
 ## Recap a inizio sessione
 
-Quando una sessione parte o viene ripresa (anche in una finestra agent riaperta), prima di rispondere al primo messaggio dell'utente fai un recap brevissimo, in italiano, di 3-5 righe:
+Il recap dello stato del progetto (change OpenSpec con avanzamento, ultimo commit, modifiche non committate) lo mostra l'hook `SessionStart` (`.claude/hooks/session-recap.sh`) all'utente, **prima del primo prompt**, tramite `systemMessage`; lo stesso stato arriva anche nel tuo contesto.
 
-- Se la conversazione ha un task in corso: cosa si stava facendo, a che punto e qual e' il prossimo passo concreto.
-- Se non c'e' un task specifico: stato del progetto, cioe' change OpenSpec attive (con avanzamento task), ultimi commit e modifiche non committate. L'hook `SessionStart` (`.claude/hooks/session-recap.sh`) ne fornisce i dati nel contesto.
-
-Niente liste lunghe e nessuna azione: e' solo un punto della situazione. Se il primo messaggio dell'utente e' gia' una richiesta precisa, dai il recap in una riga e poi rispondi.
+Quindi, al primo messaggio dell'utente, non ripetere lo stato del progetto. Se la conversazione ha un task in corso (sessione ripresa), apri con 1-3 righe in italiano su cosa si stava facendo, a che punto e qual e' il prossimo passo concreto; se non c'e' un task specifico, non fare recap e rispondi direttamente. Nessuna azione: e' solo un punto della situazione.
 
 ## Convenzioni
 
