@@ -41,11 +41,24 @@
 // Log dettagliato per la prova su strada (taratura cono, soglie e SPEEDCAM_DIR_OFFSET_DEG): mettere a 0 dopo
 #define SPEEDCAM_ROAD_TEST_LOG 1
 
+// Log degli eventi significativi su LittleFS (alert, passaggi, perdita GPS, ricarica DB).
+// Si scarica con ./dump_roadlog.sh. Ruota a ROAD_LOG_MAX_BYTES (file corrente + .old).
+#define ROAD_LOG_ENABLED 1
+#define ROAD_LOG_PATH "/roadlog.txt"
+#define ROAD_LOG_OLD_PATH "/roadlog.old.txt"
+#define ROAD_LOG_MAX_BYTES 80000
+#define ROAD_LOG_MIN_FREE_BYTES 24000      // Sotto questo spazio libero il log si ferma
+#define ROAD_LOG_FLUSH_MS 15000            // Scrittura su flash al massimo ogni 15 s (e a ogni HIDE)
+#define ROAD_LOG_TRACK_INTERVAL_MS 2000    // Riga di avanzamento durante un alert
+
 // Detection direzionale (vedi openspec/changes/refine-speedcam-detection/design.md)
 #define SPEEDCAM_MIN_SPEED_KMH 10          // Sotto questa velocita' il course GPS non e' affidabile
 #define SPEEDCAM_HEADING_HOLD_MS 10000     // Quanto si mantiene l'ultimo heading valido sotto soglia
 #define SPEEDCAM_HEADING_FALLBACK_MIN_M 10 // Distanza minima tra fix per calcolare il bearing di ripiego
-#define SPEEDCAM_CONE_HALF_ANGLE_DEG 60    // Semiangolo del cono di marcia
+#define SPEEDCAM_CONE_HALF_ANGLE_DEG 60    // Semiangolo massimo del cono di marcia (da vicino)
+#define SPEEDCAM_CONE_LATERAL_M 150        // Scarto laterale ammesso: il cono si restringe con la distanza (atan(lat/d))
+#define SPEEDCAM_CONE_MIN_DEG 15           // Semiangolo minimo del cono, a grande distanza
+#define SPEEDCAM_GPS_LATENCY_MS 700        // Ritardo stimato tra posizione reale e fix GPS, oltre all'eta' del fix
 #define SPEEDCAM_NEAR_FIELD_M 40           // Entro questa distanza il cono non si applica
 #define SPEEDCAM_PASSED_ANGLE_DEG 90       // Oltre questo angolo il POI e' alle spalle (superato)
 #define SPEEDCAM_PASSED_HYSTERESIS_M 25    // Allontanamento oltre min_distance + isteresi = superato

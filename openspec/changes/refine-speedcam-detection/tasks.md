@@ -20,7 +20,13 @@
 
 - [x] 4.4 Campo `richtung` nel database (`Speedcam.dir`), filtro direzionale nel tracker, `SPEEDCAM_DIR_OFFSET_DEG`; test host e scenario `corsia_opposta`
 
-## 5. Verifica
+## 5. Esito prova su strada (16/10) e interventi
+- [x] 5.4 Log eventi su LittleFS (`road_log.*`, `./dump_roadlog.sh`): alert (con geometria), avanzamento, fine alert e motivo, perdita GPS, ricarica DB
+- [x] 5.5 Cono che si restringe con la distanza (`SPEEDCAM_CONE_LATERAL_M`, `SPEEDCAM_CONE_MIN_DEG`) contro gli alert su strade laterali
+- [x] 5.6 Compensazione del ritardo del fix (eta' del fix + `SPEEDCAM_GPS_LATENCY_MS`, proiezione lungo l'heading) contro il ritardo sul T-Red
+- [x] 5.7 Distanza mostrata a gradini 100/50/10 m
+
+## 5b. Verifica
 - [x] 5.1 Test host sulla geometria e sulla state machine
 - [x] 5.2 Scenari `fake_gps.json`: frontale, passato, opposto, parallelo, dietro+davanti
 - [ ] 5.3 Prova su strada e taratura cono / soglie, verifica convenzione `richtung` (offset 0 o 180)

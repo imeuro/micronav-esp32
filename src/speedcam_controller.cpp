@@ -1,5 +1,6 @@
 #include "speedcam_controller.h"
 #include "display_controller.h"
+#include "road_log.h"
 
 SpeedcamController::SpeedcamController() :
     gps_controller(nullptr),
@@ -11,6 +12,8 @@ SpeedcamController::SpeedcamController() :
     detection_radius(SPEEDCAM_DETECTION_RADIUS),
     check_interval(SPEEDCAM_CHECK_INTERVAL),
     last_detected_distance(0.0),
+    log_alert_id(0),
+    log_last_track_ms(0),
     db_from_fix(false),
     last_db_load_ms(0),
     last_check_time(0) {
@@ -163,7 +166,8 @@ bool SpeedcamController::loadDatabaseAround(double lat, double lng, bool from_fi
                            (float)lat - span, (float)lat + span,
                            (float)lng - span, (float)lng + span);
     db_from_fix = from_fix;
-    last_db_load_ms = millis();  // anche in caso di errore: niente retry a raffica
+    last_db_load_ms = millis();
+    RoadLog::event("D t=%lu centro=%.5f,%.5f fix=%d poi=%d ok=%d", millis(), lat, lng, from_fix ? 1 : 0, speedcam_count, ok ? 1 : 0);  // anche in caso di errore: niente retry a raffica
     return ok;
 }
 
@@ -240,6 +244,47 @@ static void logRoadTest(const Speedcam* cams, int count, const GPSPosition& pos,
 }
 #endif
 
+// Eventi significativi su LittleFS: inizio alert (con geometria), avanzamento, fine alert
+void SpeedcamController::logRoadEvents(const GPSPosition& pos, double eval_lat, double eval_lng,
+                                       const TrackerResult& result) {
+    if (result.hide_reason != HIDE_NONE) {
+        static const char* reasons[] = {"", "dietro", "allontanamento", "poi-sparito", "fuori-cono"};
+        RoadLog::event("H t=%lu id=%lu motivo=%s pos=%.6f,%.6f v=%.0f",
+                       millis(), (unsigned long)result.hide_id, reasons[result.hide_reason],
+                       pos.latitude, pos.longitude, pos.speed);
+        RoadLog::flush();
+    }
+
+    if (result.index < 0) {
+        log_alert_id = 0;
+        return;
+    }
+
+    const Speedcam& sc = speedcams[result.index];
+    double bearing = geo_bearing_deg(eval_lat, eval_lng, sc.lat, sc.lng);
+
+    if (sc.id != log_alert_id) {
+        log_alert_id = sc.id;
+        log_last_track_ms = millis();
+        RoadLog::event("A t=%lu id=%lu tipo=%s vmax=%s d=%d brg=%d pos=%.6f,%.6f v=%.0f hdg=%d sat=%d poi=%.6f,%.6f",
+                       millis(), (unsigned long)sc.id, sc.type, sc.vmax, (int)result.distance, (int)bearing,
+                       pos.latitude, pos.longitude, pos.speed, pos.course_valid ? (int)pos.course : -1,
+                       pos.satellites, sc.lat, sc.lng);
+        if (pos.course_valid) {
+            RoadLog::event("A+ id=%lu cono=%d dir=%d dir_off0=%d dir_off180=%d eta_fix=%lu",
+                           (unsigned long)sc.id, (int)geo_angle_diff_deg(pos.course, bearing),
+                           sc.dir == SPEEDCAM_DIR_NONE ? -1 : (int)sc.dir,
+                           sc.dir == SPEEDCAM_DIR_NONE ? -1 : (int)geo_angle_diff_deg(pos.course, sc.dir),
+                           sc.dir == SPEEDCAM_DIR_NONE ? -1 : (int)geo_angle_diff_deg(pos.course, fmod(sc.dir + 180.0, 360.0)),
+                           millis() - pos.last_update);
+        }
+    } else if (millis() - log_last_track_ms >= ROAD_LOG_TRACK_INTERVAL_MS) {
+        log_last_track_ms = millis();
+        RoadLog::event("T t=%lu id=%lu d=%d brg=%d v=%.0f hdg=%d", millis(), (unsigned long)sc.id,
+                       (int)result.distance, (int)bearing, pos.speed, pos.course_valid ? (int)pos.course : -1);
+    }
+}
+
 const Speedcam* SpeedcamController::checkSpeedcams(const GPSPosition* position) {
     // Throttling: esegui check solo ogni X millisecondi
     unsigned long current_time = millis();
@@ -273,6 +318,11 @@ const Speedcam* SpeedcamController::checkSpeedcams(const GPSPosition* position) 
     }
     
     // Verifica validità posizione
+    static bool was_valid = true;
+    if (was_valid != gps_position.is_valid) {
+        RoadLog::event("G t=%lu fix=%d sat=%d", millis(), gps_position.is_valid ? 1 : 0, gps_position.satellites);
+        was_valid = gps_position.is_valid;
+    }
     if (!gps_position.is_valid) {
         #ifdef DEBUG_ENABLED
         if (DEBUG_ENABLED) {
@@ -326,10 +376,24 @@ const Speedcam* SpeedcamController::checkSpeedcams(const GPSPosition* position) 
 
     refreshDatabaseIfDue(gps_position);
 
+    // Compensa il ritardo del fix: la posizione GPS e' vecchia (eta' + latenza del modulo),
+    // l'auto e' gia' piu' avanti lungo l'heading
+    double eval_lat = gps_position.latitude;
+    double eval_lng = gps_position.longitude;
+    if (gps_position.course_valid && gps_position.speed >= SPEEDCAM_MIN_SPEED_KMH) {
+        unsigned long age_ms = current_time - gps_position.last_update;
+        if (age_ms > 3000) age_ms = 3000;
+        double lookahead_s = (age_ms + SPEEDCAM_GPS_LATENCY_MS) / 1000.0;
+        geo_project(gps_position.latitude, gps_position.longitude, gps_position.course,
+                    (gps_position.speed / 3.6) * lookahead_s, eval_lat, eval_lng);
+    }
+
     TrackerResult result = tracker.update(speedcams, speedcam_count,
-                                          gps_position.latitude, gps_position.longitude,
+                                          eval_lat, eval_lng,
                                           gps_position.course_valid, gps_position.course,
                                           detection_radius);
+
+    logRoadEvents(gps_position, eval_lat, eval_lng, result);
 
     #if SPEEDCAM_ROAD_TEST_LOG
     logRoadTest(speedcams, speedcam_count, gps_position, detection_radius, result);
@@ -377,7 +441,8 @@ void SpeedcamController::notifySpeedcamDetected(const Speedcam& speedcam, float 
     
     // Visualizza alert su display
     if (display_controller) {
-        display_controller->showSpeedcamAlert(speedcam, distance);
+        // Distanza a gradini (100/50/10 m): il metro esatto e' rumore, e cambia di continuo
+        display_controller->showSpeedcamAlert(speedcam, (float)geo_display_distance_m(distance));
     }
 }
 

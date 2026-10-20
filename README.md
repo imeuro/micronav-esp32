@@ -19,6 +19,7 @@ Versione basic per ESP32-C3-MINI-1U con GPS ATGM336H e display GC9A01 240x240 on
 - ✅ Database speedcam locale (JSON su LittleFS), con direzione del POI (`richtung`) e box geografico centrato sulla posizione, ricalcolato ogni 30 min
 - ✅ Modalità fake GPS per test senza hardware (+ scenari in `data/fake_scenarios/`)
 - ✅ Log `[RoadTest]` per la taratura su strada (`SPEEDCAM_ROAD_TEST_LOG`)
+- ✅ Log eventi su LittleFS (`ROAD_LOG_ENABLED`), scaricabile con `./dump_roadlog.sh` (cancellazione: `./dump_roadlog.sh --clear`; `upload_littlefs.sh` lo cancella)
 - ✅ Test su host della geometria e della state machine (`tests/host/`)
 - ✅ Script automatizzati per build, upload e monitor; debug seriale completo
 

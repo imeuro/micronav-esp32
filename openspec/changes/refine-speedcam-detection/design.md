@@ -41,6 +41,15 @@ Il "tracking allontanamento" esiste (`previous_detected_distance`, soglia 10 m) 
 
 **Testabilita'**: `geo_utils.h` (bearing, angdiff, cono) e la state machine in classe senza `Arduino.h`, compilabili su host. Scenari su `fake_gps.json`: avvicinamento frontale, passaggio e allontanamento, direzione opposta, strada parallela, POI dietro + POI davanti.
 
+## Esito della prova su strada (16/10) e interventi
+
+Osservazioni: molti alert su POI poi spariti (nel cono ma su un'altra strada), GPS buono, ripresa rapida dopo galleria, distanza al metro ridondante, T-Red segnalato con ~40 m residui al passaggio.
+
+- **Falsi alert**: un cono fisso a 60° ammette POI a centinaia di metri di scarto laterale. Il semiangolo ora e' `atan(SPEEDCAM_CONE_LATERAL_M / d)` limitato tra `SPEEDCAM_CONE_MIN_DEG` (15) e 60: a 400 m ammette ~20 deg (150 m di scarto), a 150 m ~45 deg, sotto ~90 m 60 deg. Rischio: curve secche con POI lontano oltre lo scarto non vengono segnalate fino a distanza minore. I parametri sono una stima iniziale, da tarare sul log.
+- **Ritardo**: la posizione e' vecchia di (eta' del fix + latenza del modulo); a 50 km/h 1 s sono ~14 m. Si valuta la posizione proiettata lungo l'heading di `velocita' x (eta' + SPEEDCAM_GPS_LATENCY_MS)`. Resto del ritardo atteso da coordinate del POI e rumore GPS, non compensabile.
+- **Distanza mostrata**: gradini 100 m oltre 500 m, 50 m fino a 100 m, 10 m sotto.
+- **Log**: eventi significativi su LittleFS (non ogni secondo) per analisi a posteriori; si scarica da seriale.
+
 ## Rischi
 
 - Course rumoroso a bassa velocita' -> soglia + hold.

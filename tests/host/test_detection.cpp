@@ -214,7 +214,65 @@ static void test_direction() {
     CHECK(t4.update(&same, 1, LAT0, LNG0, false, 0, RADIUS).index < 0);
 }
 
+static void test_narrowing_cone() {
+    // POI a 400 m in avanti con scarto laterale 100 m (angolo ~14 gradi, limite ~20): alert
+    double plat, plng, tlat, tlng;
+    offset(LAT0, LNG0, 90, 400, tlat, tlng);
+    offset(tlat, tlng, 0, 100, plat, plng);
+    SpeedcamTracker t;
+    Poi near_axis{1, (float)plat, (float)plng};
+    CHECK(t.update(&near_axis, 1, LAT0, LNG0, true, 90, RADIUS).index == 0);
+
+    // Strada laterale: stesso POI a 400 m ma scarto laterale 250 m (angolo ~32, limite ~20): niente alert
+    offset(tlat, tlng, 0, 250, plat, plng);
+    Poi side{2, (float)plat, (float)plng};
+    SpeedcamTracker t2;
+    CHECK(t2.update(&side, 1, LAT0, LNG0, true, 90, RADIUS).index < 0);
+
+    // Avvicinandosi la strada laterale a 250 m non entra mai in cono oltre il campo vicino
+    Drive d(LAT0, LNG0, 90);
+    offset(LAT0, LNG0, 90, 800, tlat, tlng);
+    offset(tlat, tlng, 0, 250, plat, plng);
+    d.pois.push_back({3, (float)plat, (float)plng});
+    bool any = false;
+    for (int i = 0; i < 40; i++) { if (d.step(40).index >= 0) any = true; }
+    CHECK(!any);
+
+    CHECK(speedcam_cone_half_angle(2000) == SPEEDCAM_CONE_MIN_DEG);
+    CHECK(speedcam_cone_half_angle(10) == SPEEDCAM_CONE_HALF_ANGLE_DEG);
+}
+
+static void test_hide_reason_and_display() {
+    double plat, plng;
+    offset(LAT0, LNG0, 90, 300, plat, plng);
+    Drive d(LAT0, LNG0, 90);
+    d.pois.push_back({7, (float)plat, (float)plng});
+    int reason = 0; uint32_t rid = 0;
+    for (int i = 0; i < 20; i++) {
+        TrackerResult r = d.step(30);
+        if (r.hide_reason != HIDE_NONE) { reason = r.hide_reason; rid = r.hide_id; }
+    }
+    CHECK(reason == HIDE_BEHIND || reason == HIDE_RECEDING);
+    CHECK(rid == 7);
+
+    CHECK(geo_display_distance_m(870) == 900);
+    CHECK(geo_display_distance_m(520) == 500);
+    CHECK(geo_display_distance_m(480) == 500);
+    CHECK(geo_display_distance_m(233) == 250);
+    CHECK(geo_display_distance_m(97) == 100);
+    CHECK(geo_display_distance_m(43) == 40);
+    CHECK(geo_display_distance_m(4) == 0);
+
+    // proiezione in avanti: 30 m lungo 90 gradi
+    double lat2, lng2;
+    geo_project(LAT0, LNG0, 90, 30, lat2, lng2);
+    CHECK(fabs(geo_distance_m(LAT0, LNG0, lat2, lng2) - 30) < 0.5);
+    CHECK(fabs(geo_bearing_deg(LAT0, LNG0, lat2, lng2) - 90) < 0.1);
+}
+
 int main() {
+    test_narrowing_cone();
+    test_hide_reason_and_display();
     test_direction();
     test_geometry();
     test_heading();

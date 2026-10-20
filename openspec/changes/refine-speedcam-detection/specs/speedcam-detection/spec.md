@@ -19,6 +19,27 @@ Il sistema SHALL mostrare un alert solo per POI (autovelox, T-Red, speedcam) ent
 - **WHEN** la velocita' e' sotto la soglia minima e l'heading mantenuto e' scaduto
 - **THEN** non vengono generati nuovi alert, e i POI gia' in allontanamento restano esclusi
 
+### Requirement: Cono di marcia dipendente dalla distanza
+Il sistema SHALL restringere il cono di marcia con la distanza dal POI, in modo che i POI con grande scarto laterale rispetto alla direzione di marcia non generino alert da lontano.
+
+#### Scenario: POI su strada laterale
+- **WHEN** un POI e' nel raggio ma il suo scarto angolare supera il semiangolo ammesso per quella distanza
+- **THEN** non viene mostrato alcun alert
+
+### Requirement: Compensazione del ritardo GPS
+Il sistema SHALL valutare la distanza dai POI sulla posizione proiettata lungo l'heading per l'eta' del fix piu' la latenza stimata del modulo GPS, quando heading e velocita' sono affidabili.
+
+#### Scenario: Passaggio sotto il POI
+- **WHEN** l'auto si avvicina a un POI a velocita' sostenuta
+- **THEN** la distanza usata per alert e dismissione tiene conto del ritardo del fix, cosi' l'alert non segna ancora decine di metri quando si e' gia' al POI
+
+### Requirement: Distanza mostrata a gradini
+Il sistema SHALL mostrare la distanza dal POI a gradini di 100 m oltre i 500 m, di 50 m fino a 100 m e di 10 m sotto.
+
+#### Scenario: Avvicinamento
+- **WHEN** la distanza dal POI scende da 800 m a 30 m
+- **THEN** il valore mostrato cambia a passi di 100 m, poi 50 m, poi 10 m, non al metro
+
 ### Requirement: Dismissione al passaggio
 Il sistema SHALL nascondere l'alert di un POI non appena viene superato e SHALL NOT mostrarlo di nuovo finche' non e' uscito dall'area (raggio con isteresi).
 

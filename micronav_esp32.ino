@@ -7,6 +7,7 @@
 #include "src/gps_controller.h"
 #include "src/speedcam_controller.h"
 #include "src/display_controller.h"
+#include "src/road_log.h"
 #include "src/json_parser.h"
 
 // Puntatori globali - verranno inizializzati in setup()
@@ -186,6 +187,9 @@ void setup() {
     }
     delay(100);
     
+    // Log eventi su LittleFS (dopo il mount fatto dal caricamento database)
+    RoadLog::begin();
+
     // 6. Mostra schermata idle
     Serial.println("[Setup] Mostra schermata idle...");
     Serial.flush();
@@ -241,6 +245,14 @@ void loop() {
         #endif
     }
     
+    // Comandi seriali: 'L' scarica il log eventi, 'C' lo cancella
+    while (Serial.available() > 0) {
+        char cmd = Serial.read();
+        if (cmd == 'L') RoadLog::dump(Serial);
+        else if (cmd == 'C') RoadLog::clear();
+    }
+    RoadLog::update();
+
     // 4. Aggiorna display (gestisce timeout alert, ecc.)
     display_controller->update();
 

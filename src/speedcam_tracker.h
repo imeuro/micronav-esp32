@@ -8,11 +8,30 @@
 #include "config.h"
 #include "geo_utils.h"
 
+enum TrackerHideReason {
+    HIDE_NONE = 0,
+    HIDE_BEHIND = 1,     // POI alle spalle (angolo oltre SPEEDCAM_PASSED_ANGLE_DEG)
+    HIDE_RECEDING = 2,   // distanza cresciuta oltre min_distance + isteresi
+    HIDE_GONE = 3,       // POI non piu' in database (ricarica)
+    HIDE_LOST = 4        // POI uscito da cono/raggio o heading perso
+};
+
 struct TrackerResult {
     int index;       // indice del POI da mostrare, -1 se nessuno
     float distance;  // distanza dal POI da mostrare
     bool hide;       // true se l'alert mostrato va nascosto (nessun POI da mostrare)
+    uint32_t hide_id;      // id del POI che ha smesso di essere tracciato (se hide_reason != 0)
+    int hide_reason;       // TrackerHideReason
 };
+
+// Semiangolo del cono in funzione della distanza: stretto lontano (la strada percorsa
+// e' quasi in asse col POI), largo vicino. Limita gli alert su strade laterali.
+inline double speedcam_cone_half_angle(double distance_m) {
+    double a = atan2((double)SPEEDCAM_CONE_LATERAL_M, distance_m) * (180.0 / M_PI);
+    if (a < SPEEDCAM_CONE_MIN_DEG) a = SPEEDCAM_CONE_MIN_DEG;
+    if (a > SPEEDCAM_CONE_HALF_ANGLE_DEG) a = SPEEDCAM_CONE_HALF_ANGLE_DEG;
+    return a;
+}
 
 class SpeedcamTracker {
 public:
@@ -25,7 +44,7 @@ public:
     template <typename T>
     TrackerResult update(const T* cams, int count, double lat, double lng,
                          bool heading_valid, float course, float radius) {
-        TrackerResult result = {-1, 0.0f, false};
+        TrackerResult result = {-1, 0.0f, false, 0, HIDE_NONE};
 
         // 1. Un POI superato torna eleggibile solo uscendo da radius * isteresi
         if (has_passed) {
@@ -41,6 +60,8 @@ public:
             if (ti < 0) {
                 tracking = false;
                 result.hide = true;
+                result.hide_id = tracked_id;
+                result.hide_reason = HIDE_GONE;
             } else {
                 float d = (float)geo_distance_m(lat, lng, cams[ti].lat, cams[ti].lng);
                 if (d < min_distance) min_distance = d;
@@ -54,6 +75,8 @@ public:
                     passed_id = tracked_id;
                     tracking = false;
                     result.hide = true;
+                    result.hide_id = tracked_id;
+                    result.hide_reason = behind ? HIDE_BEHIND : HIDE_RECEDING;
                 }
             }
         }
@@ -87,7 +110,7 @@ public:
 
             if (d > SPEEDCAM_NEAR_FIELD_M) {
                 if (heading_valid) {
-                    if (!geo_in_cone(course, geo_bearing_deg(lat, lng, sc.lat, sc.lng), SPEEDCAM_CONE_HALF_ANGLE_DEG)) continue;
+                    if (!geo_in_cone(course, geo_bearing_deg(lat, lng, sc.lat, sc.lng), speedcam_cone_half_angle(d))) continue;
                 } else if (!(tracking && sc.id == tracked_id)) {
                     continue;  // heading ignoto: nessun nuovo alert, si segue solo il POI corrente
                 }
@@ -110,6 +133,8 @@ public:
             // Il POI corrente non e' piu' valido (fuori cono/raggio): alert via
             tracking = false;
             result.hide = true;
+            result.hide_id = tracked_id;
+            result.hide_reason = HIDE_LOST;
         }
 
         return result;

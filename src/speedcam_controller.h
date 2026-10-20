@@ -110,6 +110,13 @@ private:
     float last_detected_distance;
     unsigned long last_check_time;
 
+    // Stato del log eventi
+    uint32_t log_alert_id;
+    unsigned long log_last_track_ms;
+
+    void logRoadEvents(const GPSPosition& pos, double eval_lat, double eval_lng,
+                       const TrackerResult& result);
+
     // Area del database
     bool db_from_fix;               // il box attuale e' centrato su una posizione reale
     unsigned long last_db_load_ms;

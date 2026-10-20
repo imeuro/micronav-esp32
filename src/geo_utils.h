@@ -54,4 +54,18 @@ inline bool geo_in_cone(double course_deg, double bearing_to_poi_deg, double hal
     return geo_angle_diff_deg(course_deg, bearing_to_poi_deg) <= half_angle_deg;
 }
 
+// Punto a dist_m da (lat, lng) lungo bearing_deg
+inline void geo_project(double lat, double lng, double bearing_deg, double dist_m,
+                        double& out_lat, double& out_lng) {
+    double b = geo_deg_to_rad(bearing_deg);
+    out_lat = lat + (dist_m * cos(b)) / GEO_M_PER_DEG_LAT;
+    out_lng = lng + (dist_m * sin(b)) / (GEO_M_PER_DEG_LAT * fmax(cos(geo_deg_to_rad(lat)), 0.01));
+}
+
+// Distanza da mostrare a gradini: 100 m oltre 500 m, 50 m fino a 100 m, 10 m sotto
+inline int geo_display_distance_m(double d) {
+    int step = d > 500.0 ? 100 : (d > 100.0 ? 50 : 10);
+    return ((int)(d / step + 0.5)) * step;
+}
+
 #endif // GEO_UTILS_H
