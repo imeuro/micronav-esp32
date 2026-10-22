@@ -57,6 +57,7 @@
 #define SPEEDCAM_HEADING_FALLBACK_MIN_M 10 // Distanza minima tra fix per calcolare il bearing di ripiego
 #define SPEEDCAM_CONE_HALF_ANGLE_DEG 60    // Semiangolo massimo del cono di marcia (da vicino)
 #define SPEEDCAM_CONE_LATERAL_M 150        // Scarto laterale ammesso: il cono si restringe con la distanza (atan(lat/d))
+#define SPEEDCAM_CONE_HYSTERESIS_DEG 20    // Margine in piu' per il POI gia' tracciato: evita che l'alert lampeggi con heading instabile
 #define SPEEDCAM_CONE_MIN_DEG 15           // Semiangolo minimo del cono, a grande distanza
 #define SPEEDCAM_GPS_LATENCY_MS 700        // Ritardo stimato tra posizione reale e fix GPS, oltre all'eta' del fix
 #define SPEEDCAM_NEAR_FIELD_M 40           // Entro questa distanza il cono non si applica
@@ -64,7 +65,7 @@
 #define SPEEDCAM_PASSED_HYSTERESIS_M 25    // Allontanamento oltre min_distance + isteresi = superato
 #define SPEEDCAM_RELEASE_FACTOR 1.2f       // Un POI superato torna eleggibile oltre raggio * fattore
 #define SPEEDCAM_DIR_NONE 0xFFFF           // POI senza direzione nel database
-#define SPEEDCAM_DIR_TOLERANCE_DEG 60      // Scarto massimo tra heading e direzione del POI
+#define SPEEDCAM_DIR_TOLERANCE_DEG 75      // Scarto massimo tra heading e direzione del POI
 #define SPEEDCAM_DIR_OFFSET_DEG 0          // Da verificare su strada: se "richtung" indica il lato verso cui punta
                                            // il dispositivo e non il traffico controllato, impostare 180
 

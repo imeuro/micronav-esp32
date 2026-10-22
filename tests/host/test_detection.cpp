@@ -270,7 +270,34 @@ static void test_hide_reason_and_display() {
     CHECK(fabs(geo_bearing_deg(LAT0, LNG0, lat2, lng2) - 90) < 0.1);
 }
 
+static void test_cone_hysteresis() {
+    // POI a 500 m in asse; l'heading oscilla: 10 gradi (dentro), 28 gradi (fuori dal cono stretto ~16,7, dentro con isteresi)
+    double plat, plng;
+    offset(LAT0, LNG0, 90, 500, plat, plng);
+    Poi p{1, (float)plat, (float)plng};
+    SpeedcamTracker t;
+    CHECK(t.update(&p, 1, LAT0, LNG0, true, 100, RADIUS).index == 0);   // delta 10: alert
+    CHECK(t.update(&p, 1, LAT0, LNG0, true, 118, RADIUS).index == 0);   // delta 28: resta (isteresi)
+    CHECK(t.update(&p, 1, LAT0, LNG0, true, 140, RADIUS).index < 0);    // delta 50: oltre cono+isteresi, esce
+    // Un POI non ancora tracciato con delta 28 non parte
+    SpeedcamTracker t2;
+    CHECK(t2.update(&p, 1, LAT0, LNG0, true, 118, RADIUS).index < 0);
+}
+
+static void test_dir_tolerance() {
+    // dir con scarto 58 gradi (caso reale id 4431): ora passa; carreggiata opposta (180) no
+    double plat, plng;
+    offset(LAT0, LNG0, 90, 20, plat, plng);
+    Poi ok{1, (float)plat, (float)plng, 148};   // heading 90, scarto 58
+    Poi opp{2, (float)plat, (float)plng, 270};  // scarto 180
+    SpeedcamTracker t, t2;
+    CHECK(t.update(&ok, 1, LAT0, LNG0, true, 90, RADIUS).index == 0);
+    CHECK(t2.update(&opp, 1, LAT0, LNG0, true, 90, RADIUS).index < 0);
+}
+
 int main() {
+    test_cone_hysteresis();
+    test_dir_tolerance();
     test_narrowing_cone();
     test_hide_reason_and_display();
     test_direction();

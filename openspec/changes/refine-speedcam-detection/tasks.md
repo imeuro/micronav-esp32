@@ -26,6 +26,10 @@
 - [x] 5.6 Compensazione del ritardo del fix (eta' del fix + `SPEEDCAM_GPS_LATENCY_MS`, proiezione lungo l'heading) contro il ritardo sul T-Red
 - [x] 5.7 Distanza mostrata a gradini 100/50/10 m
 
+- [x] 5.8 Isteresi sul cono per il POI tracciato (`SPEEDCAM_CONE_HYSTERESIS_DEG` 20): dal log del 22/10, 9 nascondimenti "fuori-cono" su 15 alert, quasi tutti flapping dello stesso POI
+- [x] 5.9 `SPEEDCAM_DIR_TOLERANCE_DEG` 60 -> 75: POI 4431 passato con scarto di direzione 58-59 gradi; `richtung` con offset 0 confermato dal log (offset 180 sempre > 120 gradi)
+- [x] 5.10 Dump seriale del log con timeout TX di attesa (con timeout 0 arrivavano solo ~4 KB)
+
 ## 5b. Verifica
 - [x] 5.1 Test host sulla geometria e sulla state machine
 - [x] 5.2 Scenari `fake_gps.json`: frontale, passato, opposto, parallelo, dietro+davanti

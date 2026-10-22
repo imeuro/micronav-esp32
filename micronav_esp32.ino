@@ -248,7 +248,13 @@ void loop() {
     // Comandi seriali: 'L' scarica il log eventi, 'C' lo cancella
     while (Serial.available() > 0) {
         char cmd = Serial.read();
-        if (cmd == 'L') RoadLog::dump(Serial);
+        if (cmd == 'L') {
+            // Con timeout 0 i byte oltre il buffer TX verrebbero scartati: il dump va fatto con attesa
+            Serial.setTxTimeoutMs(500);
+            RoadLog::dump(Serial);
+            Serial.flush();
+            Serial.setTxTimeoutMs(0);
+        }
         else if (cmd == 'C') RoadLog::clear();
     }
     RoadLog::update();

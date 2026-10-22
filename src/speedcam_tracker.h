@@ -110,7 +110,11 @@ public:
 
             if (d > SPEEDCAM_NEAR_FIELD_M) {
                 if (heading_valid) {
-                    if (!geo_in_cone(course, geo_bearing_deg(lat, lng, sc.lat, sc.lng), speedcam_cone_half_angle(d))) continue;
+                    // Il POI gia' tracciato ha un margine in piu': con curve e heading instabile
+                    // un cono stretto altrimenti accende e spegne l'alert
+                    double half = speedcam_cone_half_angle(d);
+                    if (tracking && sc.id == tracked_id) half += SPEEDCAM_CONE_HYSTERESIS_DEG;
+                    if (!geo_in_cone(course, geo_bearing_deg(lat, lng, sc.lat, sc.lng), half)) continue;
                 } else if (!(tracking && sc.id == tracked_id)) {
                     continue;  // heading ignoto: nessun nuovo alert, si segue solo il POI corrente
                 }
