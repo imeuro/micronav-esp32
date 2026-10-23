@@ -17,6 +17,6 @@
 ## 4. Verifica su hardware
 - [x] 4.1 Modifica raggio e luminosita', riavvio, valori mantenuti
 - [x] 4.2 Swipe in entrambe le direzioni, da idle e da alert, senza interferenze con gli slider
-- [ ] 4.3 Raggio piccolo/grande cambia effettivamente quando scatta l'alert (non ancora verificato)
+- [x] 4.3 Raggio piccolo/grande cambia effettivamente quando scatta l'alert (verificato col log del 22/10: primi alert a 594-646 m con raggio piccolo, a 881-890 m dopo l'aumento del raggio)
 - [x] 4.4 Touch reattivo durante il caricamento DB
 - [x] 4.5 Dopo 5 s senza toccare, le impostazioni tornano alla schermata iniziale
