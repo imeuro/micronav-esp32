@@ -59,7 +59,12 @@
 #define SPEEDCAM_CONE_LATERAL_M 150        // Scarto laterale ammesso: il cono si restringe con la distanza (atan(lat/d))
 #define SPEEDCAM_CONE_HYSTERESIS_DEG 20    // Margine in piu' per il POI gia' tracciato: evita che l'alert lampeggi con heading instabile
 #define SPEEDCAM_CONE_MIN_DEG 15           // Semiangolo minimo del cono, a grande distanza
+#define SPEEDCAM_MAX_LATERAL_M 170         // Scarto laterale massimo (distanza x seno dell'angolo) per ammettere un POI nuovo: scarta le strade parallele lontane (il POI tracciato resta governato da cono + isteresi)
+#define SPEEDCAM_SWITCH_MARGIN_M 30        // Un POI diverso sostituisce quello tracciato solo se piu' vicino di almeno cosi'
 #define SPEEDCAM_GPS_LATENCY_MS 700        // Ritardo stimato tra posizione reale e fix GPS, oltre all'eta' del fix
+#define SPEEDCAM_ALERT_ORANGE_MARGIN_KMH 10 // Sforamento massimo del limite per lo sfondo arancio (oltre: rosso)
+#define SPEEDCAM_ALERT_FLASH_COUNT 3       // Lampeggi rossi all'inizio di un alert
+#define SPEEDCAM_ALERT_FLASH_MS 150        // Durata di ogni fase (acceso/spento) del lampeggio
 #define SPEEDCAM_NEAR_FIELD_M 40           // Entro questa distanza il cono non si applica
 #define SPEEDCAM_PASSED_ANGLE_DEG 90       // Oltre questo angolo il POI e' alle spalle (superato)
 #define SPEEDCAM_PASSED_HYSTERESIS_M 25    // Allontanamento oltre min_distance + isteresi = superato
@@ -121,6 +126,7 @@
 // Colori MicroNav (RGB565)
 #define COLOR_MICRONAV_RED 0xC0C7      // Rosso principale
 #define COLOR_MICRONAV_RED_20 0x31E7   // Rosso con trasparenza ~20% (approssimato)
+#define COLOR_MICRONAV_ORANGE 0xBA80   // Arancio scuro (189,81,0): testo bianco leggibile (contrasto ~4,8:1)
 
 // Serial Debug
 #define SERIAL_DEBUG_BAUD 115200

@@ -17,6 +17,7 @@ struct GPSPosition {
     double longitude;
     double altitude;
     float speed;          // Velocità in km/h
+    bool speed_valid;     // true se la velocita' arriva da un RMC valido e recente
     float course;         // Direzione di marcia in gradi (significativo solo se course_valid)
     bool course_valid;    // true se heading affidabile (velocita' sopra soglia, o hold/bearing di ripiego)
     uint8_t satellites;
@@ -29,6 +30,7 @@ struct GPSPosition {
         longitude(0.0), 
         altitude(0.0),
         speed(0.0),
+        speed_valid(false),
         course(0.0),
         course_valid(false),
         satellites(0),

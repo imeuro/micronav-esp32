@@ -133,7 +133,7 @@ private:
     /**
      * Notifica rilevazione speedcam
      */
-    void notifySpeedcamDetected(const Speedcam& speedcam, float distance);
+    void notifySpeedcamDetected(const Speedcam& speedcam, float distance, float speed_kmh, bool speed_valid);
 };
 
 #endif // SPEEDCAM_CONTROLLER_H

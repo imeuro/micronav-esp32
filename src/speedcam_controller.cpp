@@ -248,7 +248,7 @@ static void logRoadTest(const Speedcam* cams, int count, const GPSPosition& pos,
 void SpeedcamController::logRoadEvents(const GPSPosition& pos, double eval_lat, double eval_lng,
                                        const TrackerResult& result) {
     if (result.hide_reason != HIDE_NONE) {
-        static const char* reasons[] = {"", "dietro", "allontanamento", "poi-sparito", "fuori-cono"};
+        static const char* reasons[] = {"", "dietro", "allontanamento", "poi-sparito", "fuori-cono", "sostituito"};
         RoadLog::event("H t=%lu id=%lu motivo=%s pos=%.6f,%.6f v=%.0f",
                        millis(), (unsigned long)result.hide_id, reasons[result.hide_reason],
                        pos.latitude, pos.longitude, pos.speed);
@@ -391,7 +391,8 @@ const Speedcam* SpeedcamController::checkSpeedcams(const GPSPosition* position) 
     TrackerResult result = tracker.update(speedcams, speedcam_count,
                                           eval_lat, eval_lng,
                                           gps_position.course_valid, gps_position.course,
-                                          detection_radius);
+                                          detection_radius,
+                                          gps_position.speed_valid && gps_position.speed >= SPEEDCAM_MIN_SPEED_KMH);
 
     logRoadEvents(gps_position, eval_lat, eval_lng, result);
 
@@ -401,7 +402,7 @@ const Speedcam* SpeedcamController::checkSpeedcams(const GPSPosition* position) 
 
     if (result.index >= 0) {
         last_detected_distance = result.distance;
-        notifySpeedcamDetected(speedcams[result.index], result.distance);
+        notifySpeedcamDetected(speedcams[result.index], result.distance, gps_position.speed, gps_position.speed_valid);
         return &speedcams[result.index];
     }
 
@@ -420,7 +421,7 @@ const Speedcam* SpeedcamController::checkSpeedcams(const GPSPosition* position) 
     return nullptr;
 }
 
-void SpeedcamController::notifySpeedcamDetected(const Speedcam& speedcam, float distance) {
+void SpeedcamController::notifySpeedcamDetected(const Speedcam& speedcam, float distance, float speed_kmh, bool speed_valid) {
     #ifdef DEBUG_ENABLED
     if (DEBUG_ENABLED) {
         Serial.print("[Speedcam] 🚨 Speedcam rilevata - ID: ");
@@ -442,7 +443,7 @@ void SpeedcamController::notifySpeedcamDetected(const Speedcam& speedcam, float 
     // Visualizza alert su display
     if (display_controller) {
         // Distanza a gradini (100/50/10 m): il metro esatto e' rumore, e cambia di continuo
-        display_controller->showSpeedcamAlert(speedcam, (float)geo_display_distance_m(distance));
+        display_controller->showSpeedcamAlert(speedcam, (float)geo_display_distance_m(distance), speed_kmh, speed_valid);
     }
 }
 

@@ -30,7 +30,7 @@ public:
     void showIdleScreen();
 
     /** Mostra alert speedcam (ignorato visivamente se le impostazioni sono aperte) */
-    void showSpeedcamAlert(const struct Speedcam& speedcam, float distance);
+    void showSpeedcamAlert(const struct Speedcam& speedcam, float distance, float speed_kmh, bool speed_valid);
 
     /** Nasconde alert e torna alla schermata idle */
     void hideSpeedcamAlert();

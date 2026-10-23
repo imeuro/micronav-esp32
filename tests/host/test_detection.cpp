@@ -5,6 +5,7 @@
 #include <vector>
 #include "heading_tracker.h"
 #include "speedcam_tracker.h"
+#include "alert_level.h"
 
 struct Poi { uint32_t id; float lat; float lng; uint16_t dir = SPEEDCAM_DIR_NONE; };
 
@@ -295,12 +296,100 @@ static void test_dir_tolerance() {
     CHECK(t2.update(&opp, 1, LAT0, LNG0, true, 90, RADIUS).index < 0);
 }
 
+// Log 22/10 sera: due POI a ~7 m (8996/26772) si scambiavano come "piu' vicino" a ogni fix
+static void test_tracked_poi_is_sticky() {
+    double alat, alng, blat, blng;
+    offset(LAT0, LNG0, 90, 400, alat, alng);
+    offset(alat, alng, 0, 7, blat, blng);       // B a 7 m da A, di lato
+    Poi cams[2] = {{1, (float)alat, (float)alng}, {2, (float)blat, (float)blng}};
+    SpeedcamTracker t;
+    TrackerResult r = t.update(cams, 2, LAT0, LNG0, true, 90, RADIUS);
+    CHECK(r.index >= 0);
+    uint32_t first = cams[r.index].id;
+    // Il fix si sposta di qualche metro di lato: il piu' vicino cambierebbe, il tracciato resta
+    for (int k = 0; k < 6; k++) {
+        double lat, lng;
+        offset(LAT0, LNG0, 0, (k % 2) ? 6 : -6, lat, lng);
+        r = t.update(cams, 2, lat, lng, true, 90, RADIUS);
+        CHECK(r.index >= 0 && cams[r.index].id == first);
+        CHECK(r.hide_reason == HIDE_NONE);
+    }
+    // Un POI nettamente piu' vicino (> margine) sostituisce il tracciato e lo segnala
+    double clat, clng;
+    offset(LAT0, LNG0, 90, 200, clat, clng);
+    Poi cams2[3] = {cams[0], cams[1], {3, (float)clat, (float)clng}};
+    r = t.update(cams2, 3, LAT0, LNG0, true, 90, RADIUS);
+    CHECK(r.index == 2);
+    CHECK(r.hide_reason == HIDE_SWITCH && r.hide_id == first && !r.hide);
+}
+
+// Log 22/10 sera, POI 8989: fermo a ~180 m, la deriva GPS a 2 km/h faceva scattare "allontanamento"
+// e il passaggio successivo restava senza alert
+static void test_no_receding_when_slow() {
+    double plat, plng;
+    offset(LAT0, LNG0, 90, 180, plat, plng);
+    Poi p{1, (float)plat, (float)plng};
+    SpeedcamTracker t;
+    CHECK(t.update(&p, 1, LAT0, LNG0, true, 90, RADIUS, true).index == 0);
+    // Deriva: 30 m indietro, ma a velocita' sotto soglia
+    double lat, lng;
+    offset(LAT0, LNG0, 270, 30, lat, lng);
+    TrackerResult r = t.update(&p, 1, lat, lng, true, 90, RADIUS, false);
+    CHECK(r.index == 0 && !r.hide);
+    // Ripartenza verso il POI e passaggio vero: nessun alert perso
+    CHECK(t.update(&p, 1, LAT0, LNG0, true, 90, RADIUS, true).index == 0);
+    offset(plat, plng, 90, 100, lat, lng);  // oltre il POI di 100 m, in marcia
+    r = t.update(&p, 1, lat, lng, true, 90, RADIUS, true);
+    CHECK(r.hide && r.hide_reason != HIDE_NONE);
+}
+
+// Log 22/10 sera, POI 4611: strada parallela, scarto laterale 198-285 m ammesso dal minimo del cono (15 gradi)
+static void test_lateral_cap() {
+    // d ~ 881 m con angolo 13 gradi -> laterale ~198 m: nuovo POI rifiutato
+    double plat, plng;
+    offset(LAT0, LNG0, 90 + 13, 881, plat, plng);
+    Poi far{1, (float)plat, (float)plng};
+    SpeedcamTracker t;
+    CHECK(t.update(&far, 1, LAT0, LNG0, true, 90, RADIUS).index < 0);
+    // d ~ 890 m con angolo 9 gradi (caso reale 8996) -> laterale ~139 m: ammesso
+    offset(LAT0, LNG0, 90 + 9, 890, plat, plng);
+    Poi ok{2, (float)plat, (float)plng};
+    SpeedcamTracker t2;
+    CHECK(t2.update(&ok, 1, LAT0, LNG0, true, 90, RADIUS).index == 0);
+    // Il POI gia' tracciato non e' soggetto al tetto laterale (solo cono + isteresi): resta anche a 200 m laterali
+    double lat, lng;
+    offset(LAT0, LNG0, 0, 60, lat, lng);    // il fix si sposta di 60 m di lato: laterale ~200 m
+    CHECK(t2.update(&ok, 1, lat, lng, true, 90, RADIUS).index == 0);
+}
+
+static void test_alert_level() {
+    const int M = 10;
+    CHECK(alertBackgroundLevel(48, true, 50, M) == ALERT_BG_NONE);
+    CHECK(alertBackgroundLevel(50, true, 50, M) == ALERT_BG_NONE);
+    CHECK(alertBackgroundLevel(50.1f, true, 50, M) == ALERT_BG_ORANGE);
+    CHECK(alertBackgroundLevel(58, true, 50, M) == ALERT_BG_ORANGE);
+    CHECK(alertBackgroundLevel(60, true, 50, M) == ALERT_BG_ORANGE);
+    CHECK(alertBackgroundLevel(61, true, 50, M) == ALERT_BG_RED);
+    CHECK(alertBackgroundLevel(120, false, 50, M) == ALERT_BG_NONE);
+    CHECK(alertBackgroundLevel(120, true, -1, M) == ALERT_BG_NONE);
+    CHECK(alertLimitKmh("50") == 50);
+    CHECK(alertLimitKmh("/") == -1);
+    CHECK(alertLimitKmh("") == -1);
+    CHECK(alertLimitKmh("A") == -1);
+    CHECK(alertLimitKmh("0") == -1);
+    CHECK(alertLimitKmh(nullptr) == -1);
+}
+
 int main() {
     test_cone_hysteresis();
     test_dir_tolerance();
     test_narrowing_cone();
     test_hide_reason_and_display();
     test_direction();
+    test_tracked_poi_is_sticky();
+    test_no_receding_when_slow();
+    test_lateral_cap();
+    test_alert_level();
     test_geometry();
     test_heading();
     test_frontal_then_passed();

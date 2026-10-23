@@ -1,6 +1,7 @@
 #include "display_controller.h"
 #include "speedcam_controller.h"
 #include "ui_micronav.h"
+#include "alert_level.h"
 #include <Wire.h>
 
 // LVGL usa callback C senza contesto: serve un puntatore all'istanza unica
@@ -91,6 +92,7 @@ bool DisplayController::begin() {
     micronav_ui_init();
     micronav_set_brightness_callback(brightnessCallback);
     micronav_set_radius_callback(radiusCallback);
+    micronav_set_alert_flash(SPEEDCAM_ALERT_FLASH_COUNT, SPEEDCAM_ALERT_FLASH_MS);
     micronav_set_settings_values(brightness_percent, radius_m);
 
     last_tick_ms = millis();
@@ -211,9 +213,11 @@ void DisplayController::showIdleScreen() {
     }
 }
 
-void DisplayController::showSpeedcamAlert(const struct Speedcam& speedcam, float distance) {
+void DisplayController::showSpeedcamAlert(const struct Speedcam& speedcam, float distance, float speed_kmh, bool speed_valid) {
     if (!is_initialized) return;
 
+    // Il flash parte solo per un alert nuovo, non sugli aggiornamenti a 1 Hz
+    const bool is_new_alert = !showing_alert;
     showing_alert = true;
     alert_start_time = millis();
 
@@ -224,7 +228,11 @@ void DisplayController::showSpeedcamAlert(const struct Speedcam& speedcam, float
     const char* type_text = is_semaforo ? "T RED" : "VELOX";
     const char* status_text = (speedcam.status == 'A') ? "attivo" : "inattivo";
     const char* vmax = (speedcam.vmax[0] != '\0' && speedcam.vmax[0] != '/') ? speedcam.vmax : "";
-    micronav_show_speedcam_alert(type_text, status_text, (int)distance, is_semaforo, vmax);
+    const int limit = is_semaforo ? -1 : alertLimitKmh(vmax);
+    const int level = alertBackgroundLevel(speed_kmh, speed_valid, limit, SPEEDCAM_ALERT_ORANGE_MARGIN_KMH);
+    const int speed_shown = speed_valid ? (int)(speed_kmh + 0.5f) : -1;
+    micronav_show_speedcam_alert(type_text, status_text, (int)distance, is_semaforo, vmax,
+                                 speed_shown, (int)level, is_new_alert);
 }
 
 void DisplayController::hideSpeedcamAlert() {

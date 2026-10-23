@@ -30,6 +30,10 @@
 - [x] 5.9 `SPEEDCAM_DIR_TOLERANCE_DEG` 60 -> 75: POI 4431 passato con scarto di direzione 58-59 gradi; `richtung` con offset 0 confermato dal log (offset 180 sempre > 120 gradi)
 - [x] 5.10 Dump seriale del log con timeout TX di attesa (con timeout 0 arrivavano solo ~4 KB)
 
+- [x] 5.11 POI tracciato stabile: resta finche' valido salvo un altro piu' vicino di `SPEEDCAM_SWITCH_MARGIN_M` (30 m); la sostituzione e' loggata come `H motivo=sostituito`. Dal log del 22/10 sera: 8996 e 26772 (7 m di distanza) si scambiavano ~10 volte. Test host `test_tracked_poi_is_sticky`
+- [x] 5.12 Niente "superato" (dietro/allontanamento) sotto `SPEEDCAM_MIN_SPEED_KMH`: la deriva GPS da fermi (POI 8989, v=2, 171->195 m) lo marcava passato e il passaggio vero restava senza alert. Test host `test_no_receding_when_slow`
+- [x] 5.13 Tetto allo scarto laterale per ammettere un POI nuovo (`SPEEDCAM_MAX_LATERAL_M` 170, distanza x seno dell'angolo): il minimo del cono (15 gradi) ammetteva ~230 m laterali a 890 m (POI 4611 su strada parallela: 198-285 m, alert per 80 s). Alert reali del log: scarto <= 139 m. Il POI tracciato resta governato da cono + isteresi. Test host `test_lateral_cap`
+
 ## 5b. Verifica
 - [x] 5.1 Test host sulla geometria e sulla state machine
 - [x] 5.2 Scenari `fake_gps.json`: frontale, passato, opposto, parallelo, dietro+davanti

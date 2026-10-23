@@ -14,6 +14,7 @@ Versione basic per ESP32-C3-MINI-1U con GPS ATGM336H e display GC9A01 240x240 on
 - ✅ Rilevazione speedcam basata su posizione GPS, **direzionale**: cono di marcia, POI superati e carreggiata opposta esclusi (vedi `openspec/changes/refine-speedcam-detection`)
 - ✅ UI su **LVGL 8.3** (backend di flush LovyanGFX): boot logo con fade-in, schermata idle, alert VELOX / semaforo (T RED) con font Geist Black
 - ✅ Indicatore e stato GPS (fix, satelliti) sempre visibili, anche durante l'alert
+- ✅ Alert con flash rosso iniziale (3 lampeggi), poi sfondo nero/arancio/rosso in base alla velocità GPS rispetto al limite (arancio fino a +10 km/h) e velocità istantanea in alto; pallino GPS accanto al testo di stato
 - ✅ **Touch + impostazioni a swipe**: anello verticale idle → luminosità → raggio di detection → idle; chiusura automatica dopo 5 s di inattività
 - ✅ Luminosità (backlight PWM) e raggio di detection (200-2000 m) regolabili da touch e **salvati in NVS**
 - ✅ Database speedcam locale (JSON su LittleFS), con direzione del POI (`richtung`) e box geografico centrato sulla posizione, ricalcolato ogni 30 min

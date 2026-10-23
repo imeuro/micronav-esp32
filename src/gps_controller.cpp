@@ -108,6 +108,7 @@ void GPSController::updatePosition() {
         current_position.altitude = gps_parser.altitude.meters();
     }
     
+    current_position.speed_valid = gps_parser.speed.isValid() && gps_parser.speed.age() < 2000;
     if (gps_parser.speed.isValid()) {
         current_position.speed = gps_parser.speed.kmph();
     }
@@ -397,6 +398,7 @@ void GPSController::updateFakePosition() {
     current_position.longitude = point.lng;
     current_position.altitude = point.altitude;
     current_position.speed = point.speed;
+    current_position.speed_valid = true;
     heading_tracker.update(current_time, point.lat, point.lng, point.speed,
                            point.course_valid, point.course);
     current_position.course_valid = heading_tracker.isValid();

@@ -41,6 +41,13 @@ static lv_obj_t *alert_status_label = NULL;
 static lv_obj_t *alert_distance_label = NULL;
 static lv_obj_t *alert_circle = NULL;
 static lv_obj_t *alert_circle_text = NULL;
+static lv_obj_t *alert_speed_label = NULL;
+static lv_obj_t *alert_speed_unit = NULL;
+static lv_timer_t *alert_flash_timer = NULL;
+static int alert_flash_step = 0;       // fasi rimanenti (rosso/nero alternati)
+static int alert_flash_count = 3;
+static int alert_flash_phase_ms = 150;
+static int alert_final_level = 0;      // livello di sfondo da applicare a fine flash
 
 LV_FONT_DECLARE(geist_black_26);
 LV_FONT_DECLARE(geist_black_30);
@@ -48,6 +55,7 @@ LV_FONT_DECLARE(geist_black_30);
 // Colori ripresi da src/config.h (conversione da RGB565 a 24 bit)
 #define COLOR_MICRONAV_RED  lv_color_make(197, 12, 58)
 #define COLOR_LIGHT_GRAY    lv_color_make(198, 198, 198)
+#define COLOR_MICRONAV_ORANGE lv_color_make(189, 81, 0)  // 0xBA80 in config.h
 
 static lv_obj_t *create_black_screen(void) {
     lv_obj_t *scr = lv_obj_create(NULL);
@@ -123,17 +131,19 @@ static void radius_arc_event_cb(lv_event_t *e) {
     if (radius_callback) radius_callback(snapped);
 }
 
-// Crea indicatore GPS (pallino in alto) + testo stato/satelliti (in basso),
-// identici su qualunque schermata li ospiti.
+// Crea indicatore GPS (pallino a sinistra del testo di stato) + testo
+// stato/satelliti, in basso e identici su qualunque schermata li ospiti.
+// Il pallino va riallineato a ogni cambio testo (update_one_gps_widget).
 static void build_gps_widgets(lv_obj_t *parent, lv_obj_t **circle_out,
                                lv_obj_t **status_out, lv_obj_t **sat_out) {
     lv_obj_t *circle = lv_obj_create(parent);
     lv_obj_remove_style_all(circle);
-    lv_obj_set_size(circle, 16, 16);
-    lv_obj_set_pos(circle, 120 - 8, 15 - 8);
+    lv_obj_set_size(circle, 12, 12);
     lv_obj_set_style_radius(circle, LV_RADIUS_CIRCLE, LV_PART_MAIN);
     lv_obj_set_style_bg_color(circle, lv_palette_main(LV_PALETTE_RED), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(circle, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_border_color(circle, lv_color_white(), LV_PART_MAIN);
+    lv_obj_set_style_border_width(circle, 1, LV_PART_MAIN);
     *circle_out = circle;
 
     lv_obj_t *status = create_label(parent, "GPS: In attesa...", lv_color_white());
@@ -144,6 +154,9 @@ static void build_gps_widgets(lv_obj_t *parent, lv_obj_t **circle_out,
     lv_obj_t *sat = create_label(parent, "", lv_color_white());
     lv_obj_align(sat, LV_ALIGN_TOP_MID, 0, 205);
     *sat_out = sat;
+
+    lv_obj_update_layout(parent);
+    lv_obj_align_to(circle, status, LV_ALIGN_OUT_LEFT_MID, -6, 0);
 }
 
 // Crea la schermata idle: boot logo nella stessa posizione del firmware
@@ -249,6 +262,23 @@ static void build_alert_screen(void) {
     lv_obj_set_style_text_letter_space(alert_circle_text, -1, LV_PART_MAIN);
     lv_obj_align(alert_circle_text, LV_ALIGN_CENTER, 0, 0);
 
+    // Velocita' GPS istantanea in alto (dove prima stava il pallino GPS)
+    // Riga numero + "km/h" (carattere regular, unita' piu' piccola, allineata alla base)
+    lv_obj_t *speed_row = lv_obj_create(scr_alert);
+    lv_obj_remove_style_all(speed_row);
+    lv_obj_set_size(speed_row, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(speed_row, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(speed_row, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_END);
+    lv_obj_set_style_pad_column(speed_row, 4, LV_PART_MAIN);
+    lv_obj_clear_flag(speed_row, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_align(speed_row, LV_ALIGN_TOP_MID, 0, 22);
+
+    alert_speed_label = create_label(speed_row, "--", lv_color_white());
+    lv_obj_set_style_text_font(alert_speed_label, &lv_font_montserrat_20, LV_PART_MAIN);
+    alert_speed_unit = create_label(speed_row, "km/h", lv_color_white());
+    lv_obj_set_style_text_font(alert_speed_unit, &lv_font_montserrat_14, LV_PART_MAIN);
+    lv_obj_set_style_pad_bottom(alert_speed_unit, 4, LV_PART_MAIN);
+
     // Indicatore + info GPS, persistenti anche durante l'alert
     build_gps_widgets(scr_alert, &gps_indicator_circle_alert, &gps_status_label_alert, &gps_sat_label_alert);
 }
@@ -264,7 +294,10 @@ void micronav_ui_init(void) {
     lv_scr_load(scr_idle);
 }
 
+static void stop_alert_flash(void);
+
 void micronav_show_idle_screen(void) {
+    stop_alert_flash();
     lv_scr_load(scr_idle);
 }
 
@@ -274,6 +307,8 @@ static void update_one_gps_widget(lv_obj_t *circle, lv_obj_t *status, lv_obj_t *
                                has_fix ? lv_palette_main(LV_PALETTE_GREEN) : lv_palette_main(LV_PALETTE_RED),
                                LV_PART_MAIN);
     lv_label_set_text(status, has_fix ? "GPS: Fix OK" : "GPS: In attesa...");
+    lv_obj_update_layout(status);
+    lv_obj_align_to(circle, status, LV_ALIGN_OUT_LEFT_MID, -6, 0);
     if (has_fix) {
         char buf[16];
         snprintf(buf, sizeof(buf), "Sat: %d", satellites);
@@ -288,9 +323,46 @@ void micronav_update_gps_status(bool has_fix, int satellites) {
     update_one_gps_widget(gps_indicator_circle_alert, gps_status_label_alert, gps_sat_label_alert, has_fix, satellites);
 }
 
+// Sfondo e bordo del cerchio limite per il livello dato (0 nero, 1 arancio, 2 rosso)
+static void apply_alert_background(int level) {
+    lv_color_t bg = lv_color_black();
+    if (level == 1) bg = COLOR_MICRONAV_ORANGE;
+    else if (level >= 2) bg = COLOR_MICRONAV_RED;
+    lv_obj_set_style_bg_color(scr_alert, bg, LV_PART_MAIN);
+    // Su sfondo colorato il bordo rosso sparirebbe: scuro
+    lv_obj_set_style_border_color(alert_circle, level > 0 ? lv_color_black() : COLOR_MICRONAV_RED, LV_PART_MAIN);
+}
+
+static void stop_alert_flash(void) {
+    if (alert_flash_timer) {
+        lv_timer_del(alert_flash_timer);
+        alert_flash_timer = NULL;
+    }
+    alert_flash_step = 0;
+}
+
+// Una fase del flash: rosso nei passi pari, nero nei dispari (si parte da rosso); all'ultimo
+// passo applica il livello finale piu' recente
+static void alert_flash_cb(lv_timer_t *t) {
+    (void)t;
+    if (alert_flash_step <= 0) {
+        stop_alert_flash();
+        apply_alert_background(alert_final_level);
+        return;
+    }
+    apply_alert_background((alert_flash_step % 2 == 0) ? 2 : 0);
+    alert_flash_step--;
+}
+
+void micronav_set_alert_flash(int count, int phase_ms) {
+    alert_flash_count = count;
+    alert_flash_phase_ms = phase_ms;
+}
+
 void micronav_show_speedcam_alert(const char *type_text, const char *status_text,
                                    int distance_m, bool is_semaforo,
-                                   const char *vmax_text) {
+                                   const char *vmax_text,
+                                   int speed_kmh, int bg_level, bool start_flash) {
     lv_label_set_text(alert_type_label, type_text);
     lv_label_set_text(alert_status_label, status_text);
 
@@ -300,10 +372,32 @@ void micronav_show_speedcam_alert(const char *type_text, const char *status_text
 
     lv_label_set_text(alert_circle_text, is_semaforo ? "TL" : vmax_text);
 
+    if (speed_kmh >= 0) {
+        char speed_buf[8];
+        snprintf(speed_buf, sizeof(speed_buf), "%d", speed_kmh);
+        lv_label_set_text(alert_speed_label, speed_buf);
+        lv_obj_clear_flag(alert_speed_unit, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_label_set_text(alert_speed_label, "--");
+        lv_obj_add_flag(alert_speed_unit, LV_OBJ_FLAG_HIDDEN);
+    }
+
+    alert_final_level = bg_level;
+    if (start_flash && alert_flash_count > 0) {
+        stop_alert_flash();
+        alert_flash_step = alert_flash_count * 2;
+        apply_alert_background(0);
+        alert_flash_timer = lv_timer_create(alert_flash_cb, alert_flash_phase_ms, NULL);
+        alert_flash_cb(NULL);
+    } else if (alert_flash_step <= 0) {
+        apply_alert_background(bg_level);
+    }
+
     lv_scr_load(scr_alert);
 }
 
 void micronav_hide_speedcam_alert(void) {
+    stop_alert_flash();
     lv_scr_load(scr_idle);
 }
 

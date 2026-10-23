@@ -27,9 +27,16 @@ void micronav_update_gps_status(bool has_fix, int satellites);
 // ("attivo"/"inattivo"), distance_m (metri), is_semaforo (true = mostra
 // "TL" invece del numero), vmax_text (numero limite, ignorato se
 // is_semaforo)
+// speed_kmh (<0 = non valida, mostra "--"), bg_level (0 nero, 1 arancio,
+// 2 rosso: vedi AlertBgLevel in alert_level.h), start_flash (true solo per
+// un alert nuovo: lampeggio rosso prima di assumere il colore bg_level)
 void micronav_show_speedcam_alert(const char *type_text, const char *status_text,
                                    int distance_m, bool is_semaforo,
-                                   const char *vmax_text);
+                                   const char *vmax_text,
+                                   int speed_kmh, int bg_level, bool start_flash);
+
+// Lampeggio iniziale dell'alert: numero di lampeggi e durata di ogni fase (ms)
+void micronav_set_alert_flash(int count, int phase_ms);
 void micronav_hide_speedcam_alert(void);
 
 // Schermata impostazioni: slider ad arco per la luminosità (10-100%).
